@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEALA F1 WORLD CHAMPIONSHIP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+
+<script>
+
+// Pre-set nav accent before page renders to avoid red flash
+(function(){
+  try {
+    const slim = localStorage.getItem('leala_v2');
+    if(slim){
+      const s = JSON.parse(slim);
+      const races = s.races||[];
+      const drivers = s.drivers||[];
+      if(races.length && drivers.length){
+        const last = races[races.length-1];
+        const winEntry = Object.entries(last.results||{}).find(([,p])=>p===1);
+        if(winEntry){
+          const winner = drivers.find(d=>d.id===parseInt(winEntry[0]));
+          if(winner){
+            const TEAM_COLORS={'mclaren':'#FF8000','ferrari':'#cc1717','redbull':'#161960','mercedes':'#00D2BE','astonmartin':'#0d645e','williams':'#0241ff','alpine':'#0093CC','haas':'#B6BABD','kicksauber':'#52E252','racingbulls':'#6692FF'};
+            const key=(winner.team||'').toLowerCase().replace(/[^a-z]/g,'');
+            const color=TEAM_COLORS[key];
+            if(color) document.documentElement.style.setProperty('--nav-accent', color);
+          }
+        }
+      }
+    }
+  } catch(e){}
+})();
+</script>
+</head>
+<body>
+
+<nav class="app-nav">
+  <button class="nav-btn nav-btn-portada" onclick="showView('cover',this)" title="Portada"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg></button><div class="nav-warca-wrap" style="position:relative;display:inline-block;"><button class="nav-btn" id="nav-warca-btn" onclick="toggleWarcaMenu()" title="WARCA"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h3l1.5 10L10 4h4l2.5 10L18 4h3l-3 16h-4l-2-9-2 9H6z"/></svg></button><div id="warca-dropdown" class="warca-dropdown" style="display:none;"><button class="warca-opt" onclick="warcaGo('noticias')">NOTICIAS</button><button class="warca-opt" onclick="warcaGo('videos')">WTV</button><button class="warca-opt" onclick="warcaGo('bets')">WET365</button></div></div>
+  <button class="nav-btn" onclick="showView('standings',this)" title="Clasificación"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v2c0 2.5 1.9 4.5 4.4 4.9.7 1.6 2.1 2.8 3.6 3v2.1H8v2h8v-2h-3v-2.1c1.5-.2 2.9-1.4 3.6-3 2.5-.4 4.4-2.4 4.4-4.9V7c0-1.1-.9-2-2-2zM5 9V7h2v3.8C5.8 10.4 5 9.3 5 9zm14 0c0 .3-.8 1.4-2 1.8V7h2v2z"/></svg></button>
+  <button class="nav-btn" onclick="showView('teams',this)" title="Escuderías"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05.99.72 1.69 1.69 1.97 2.95h6V16.5c0-2.33-4.67-3.5-7-3.5z"/></svg></button>
+  <button class="nav-btn" onclick="showView('calendario',this)" title="Calendario"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg></button>
+  
+  
+  <button class="nav-btn" onclick="showView('duels',this)" title="Duelo"><span style="font-family:'Russo One',sans-serif;font-size:19px;letter-spacing:0.05em;font-weight:900;">VS</span></button>
+  <button class="nav-btn" onclick="showView('penalties-public',this)" title="Sanciones"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 2h7a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#facc15"/><path d="M11 4h7a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" fill="#ef4444"/></svg></button>
+  
+  
+  <button class="nav-btn nav-tt-btn" onclick="showView('timetrial',this)" title="Contrarreloj"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1h6v2H9zm10.03 5.95-1.42 1.42A8.96 8.96 0 0 0 12 5c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.62l1.42-1.42-1.42-1.42zM13 14h-2V8h2v6z"/></svg></button>
+  <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-toggle-btn" title="Modo claro/oscuro">🌙</button>
+  <button class="nav-btn" onclick="showView('hemeroteca',this)" title="Hemeroteca" style="display:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM6 7h8v6H6V7zm12 10H6v-2h12v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg></button>
+  <div style="flex:1;"></div>
+  <button class="auth-lock-btn" id="auth-lock-btn" onclick="openAuthModal()" title="Acceso admin"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54A.48.48 0 0 0 13.92 2h-3.84a.49.49 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.47a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></button>
+  <div class="nav-admin-group" id="nav-admin-group">
+    <button class="nav-btn nav-admin-btn" id="nav-admin-toggle" onclick="toggleAdminMenu()">ADMIN ▾</button>
+    <div class="nav-admin-dropdown" id="nav-admin-dropdown">
+      <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('race',null);">CARRERA</button>
+      <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('penalties',null);">Sanciones</button>
+      <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('drivers-admin',null);">PILOTOS</button>
+      <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('settings',null);">CONFIG.</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ PORTADA ══ -->
+<div class="view active" id="view-cover" style="width:100%;padding:0;margin:0;">
+  <div id="cover-root" class="cover-root"></div>
+
+</div>
+
+<div class="view" id="view-videos">
+  <div class="container">
+    <div class="s-header">
+      <div class="big-title">WTV</div>
+    </div>
+    <button class="vid-add-btn admin-only" onclick="openVideoModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Añadir vídeo
+    </button>
+    <div class="vid-grid" id="vid-grid"></div>
+  </div>
+
+  <!-- Add/Edit modal -->
+  <div class="vid-modal-overlay" id="vid-modal-overlay">
+    <div class="vid-modal">
+      <h3 id="vid-modal-title">Añadir vídeo</h3>
+      <div>
+        <label>Título del vídeo</label>
+        <input id="vid-inp-title" placeholder="Ej. RESUMEN GP CANADÁ">
+      </div>
+      <div>
+        <label>Categoría / etiqueta (opcional)</label>
+        <input id="vid-inp-tag" placeholder="Ej. RESUMEN · CARRERA · CLASIFICACIÓN">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label>Gran Premio (opcional)</label>
+          <select id="vid-inp-gp" style="background:#0d0d0d;border:1px solid var(--border);color:white;padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;outline:none;width:100%;">
+            <option value="">— Sin GP —</option>
+          </select>
+        </div>
+        <div>
+          <label>Ronda</label>
+          <input id="vid-inp-round" type="number" min="1" placeholder="Ej. 7" style="background:#0d0d0d;border:1px solid var(--border);color:white;padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;outline:none;width:100%;">
+        </div>
+      </div>
+      <!-- Source tabs -->
+      <div>
+        <label>Fuente</label>
+        <div class="vid-tab-btns">
+          <button class="vid-tab-btn active" id="vid-tab-url" onclick="switchVidTab('url')">URL YouTube / Vimeo</button>
+          <button class="vid-tab-btn" id="vid-tab-file" onclick="switchVidTab('file')">Archivo local</button>
+        </div>
+        <div id="vid-src-url">
+          <input id="vid-inp-url" placeholder="https://www.youtube.com/watch?v=...">
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'Barlow Condensed',sans-serif;">YouTube, Vimeo o cualquier URL de vídeo directo</div>
+        </div>
+        <div id="vid-src-file" style="display:none;">
+          <button class="vid-add-btn" style="margin:0;width:100%;justify-content:center;" onclick="document.getElementById('vid-file-inp').click()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Seleccionar archivo de vídeo
+          </button>
+          <input id="vid-file-inp" type="file" accept="video/*" style="display:none" onchange="onVidFileSelect(this)">
+          <div id="vid-file-name" style="font-size:11px;color:var(--muted);margin-top:6px;font-family:'Barlow Condensed',sans-serif;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-red" onclick="saveVideo()">GUARDAR</button>
+        <button class="btn btn-dark" onclick="closeVideoModal()">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen player -->
+  <div class="vid-full-overlay" id="vid-full-overlay" onclick="closeFullVideo(event)">
+    <button class="vid-full-close" onclick="closeFullVideo()">✕</button>
+    <div class="vid-full-inner" id="vid-full-inner"></div>
+    <div class="vid-full-title" id="vid-full-title"></div>
+  </div>
+</div>
+
+<div class="view" id="view-hemeroteca">
+  <div class="container">
+    <div class="admin-title">Hemeroteca</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;font-family:'Barlow Condensed',sans-serif;">Portadas guardadas del campeonato.</p>
+    <div id="hemeroteca-grid"></div>
+  </div>
+
+</div>
+
+<div class="view" id="view-standings">
+  <div class="container">
+    <div class="s-header">
+      <div class="header-logos">
+
+        <div class="logo-slot" onclick="uploadLogo('fia')" title="Clic para cambiar logo FIA">
+          <div class="fia-logo-el" id="fia-logo-el">FIA</div>
+        </div>
+
+        <div class="logo-slot" onclick="uploadLogo('f1')" title="Clic para cambiar logo F1">
+          <div class="f1-logo-el" id="f1-logo-el">F<span style="color:var(--red)">1</span></div>
+        </div>
+      </div>
+
+      <div class="champ-title-el logo-slot" id="champ-title-display" onclick="editChampTitle()" title="Clic para editar título"></div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:8px;">
+        <div>
+          <div class="dot-row">+ + + + + + + + + + + + +<br>+ + + + + + + + + + + +</div>
+
+          <div class="big-title logo-slot" id="standings-title-display" onclick="editStandingsTitle()" title="Clic para editar">DRIVER<br>STANDINGS</div>
+          <div class="dot-row">+ + + + + + + + + + + + +</div>
+        </div>
+        <div class="after-info">
+          <span class="after-label">PUNTOS DESPUÉS DE</span>
+          <span class="after-deco">— — —</span>
+          <span class="gpn" id="last-gp-display">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="standings-outer">
+    <div class="standings-plus-bg" aria-hidden="true"></div>
+    <div class="driver-list" id="driver-list"></div>
+  </div>
+
+    <!-- RESUMEN DE TEMPORADA -->
+    <div id="season-summary-section" style="display:none;">
+      <div class="evolution-section" style="border-top:2px solid var(--gold);">
+        <div class="evo-header" onclick="toggleSeasonSummary()">
+          <span class="evo-title" style="color:var(--gold);">🏆 RESUMEN DE TEMPORADA</span>
+          <span id="summary-toggle-icon" class="evo-toggle">▼</span>
+        </div>
+        <div id="season-summary-container" style="display:none;padding:16px;"></div>
+      </div>
+    </div>
+
+    <div class="evolution-section">
+      <div class="evo-header" onclick="toggleEvolution()">
+        <span class="evo-title">EVOLUCIÓN DEL CAMPEONATO</span>
+        <span class="evo-toggle" id="evo-toggle-icon">▼</span>
+      </div>
+      <div id="evolution-container" style="display:none; padding:8px 0 8px;">
+        <div style="display:flex;gap:4px;padding:0 16px 10px;">
+          <button class="evo-mode-btn" id="evo-btn-pts" onclick="setEvoMode('pts')">Puntos</button>
+          <button class="evo-mode-btn active" id="evo-btn-pos" onclick="setEvoMode('pos')">Posición</button>
+        </div>
+        <canvas id="evolution-chart" style="width:100%;max-height:280px;"></canvas>
+      </div>
+    </div>
+
+    <div class="legend-bar">
+      <div class="legend-item">
+        <span style="color:#9900cc;font-size:13px;">◤</span>
+        <span>Vuelta Rápida (+1 pto)</span>
+      </div>
+      <div class="legend-sep"></div>
+      <div class="legend-item">
+        <span style="color:#0099ff;font-size:13px;">◢</span>
+        <span>Pole Position</span>
+      </div>
+      <div class="legend-sep"></div>
+      <div class="legend-item legend-pts">
+
+      </div>
+    </div>
+
+    <div class="warca-footer logo-slot" id="warca-footer-el" onclick="uploadLogo('warca')" title="Clic para cambiar logo WARCA">
+      <div class="warca-text" id="warca-logo-el">WARCA</div>
+    </div>
+
+    <div style="text-align:center; padding:16px 0 4px;">
+      <button class="btn btn-dark" onclick="exportStandingsJPG()" style="font-size:13px;padding:10px 24px;">
+        📸 Exportar clasificación como imagen
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-profile">
+  <div class="container">
+    <div style="cursor:pointer;padding:14px 0;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;" onclick="showView('standings',null)">
+      ← Volver a Clasificación
+    </div>
+    <div id="profile-content"></div>
+  </div>
+</div>
+
+<div class="view" id="view-race">
+  <div class="container">
+    <div class="admin-title">Registrar Carrera</div>
+
+    <div class="section-card">
+      <div class="sc-title">Datos del Gran Premio</div>
+      <input type="hidden" id="edit-race-id">
+      <div id="edit-race-banner" style="display:none;background:rgba(201,168,76,0.12);border:1px solid var(--gold);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--gold);font-weight:700;letter-spacing:0.08em;">
+        ✏️ MODO EDICIÓN — <span id="edit-race-banner-name"></span> &nbsp;<button class="btn btn-dark btn-sm" onclick="cancelEditRace()" style="margin-left:8px;">Cancelar</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre del GP</label><input type="text" id="gp-name-input" placeholder="Gran Premio de Miami"></div>
+        <div class="form-group"><label>Ronda nº</label><input type="number" id="gp-round-input" min="1" max="30" placeholder="6"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Código de país ISO (2 letras)</label><input type="text" id="gp-flag-input" placeholder="SA, US, GB, ES..." maxlength="2" style="text-transform:uppercase"></div>
+        <div class="form-group"><label>País (nombre)</label><input type="text" id="gp-country-input" placeholder="Estados Unidos"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Meteorología (obligatorio)</label>
+          <select id="race-weather-input">
+            <option value="">—</option>
+            <option value="Seco">Seco</option>
+            <option value="Mixto">Mixto</option>
+            <option value="Lluvia">Lluvia</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Nº de SCs durante la carrera (obligatorio)</label>
+          <input type="number" id="race-sc-input" min="0" max="20" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tipo de Qualy (obligatorio)</label>
+          <select id="race-qualytype-input">
+            <option value="">—</option>
+            <option value="18 minutos">18 minutos</option>
+            <option value="1 vuelta">1 vuelta</option>
+            <option value="Sprint Qualifying">Sprint Qualifying</option>
+          </select>
+        </div>
+        <div class="form-group"></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">Resultados de Clasificación (Pole → último)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Introduce la posición de clasificación de cada piloto. Deja vacío si no participó.</p>
+      <div id="qual-entry-list"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">⏱ Tiempos de Qualy <span style="font-size:11px;font-weight:400;color:var(--muted);letter-spacing:0;">(opcional — mm:ss.sss)</span></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Introduce el mejor tiempo de clasificación de cada piloto. Se usará para comparativas en Duelos.</p>
+      <div id="qual-times-list"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">Resultados de Carrera (posición final)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Introduce la posición de carrera. Deja en 0 o vacío si no terminó (DNF).</p>
+      <div id="race-entry-list"></div>
+    </div>
+
+    <div class="section-card gold" id="sprint-section-card">
+      <div class="sc-title gold">Sprint Race (opcional)</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text);letter-spacing:0;">
+          <input type="checkbox" id="sprint-enabled" onchange="toggleSprintSection()" style="width:16px;height:16px;">
+          Este GP incluye Sprint Race
+        </label>
+      </div>
+      <div id="sprint-entry-container" style="display:none;">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Posición en la Sprint. Los puntos se calculan automáticamente según el sistema sprint configurado.</p>
+        <div id="sprint-entry-list"></div>
+      </div>
+    </div>
+
+    <div class="section-card gold">
+      <div class="sc-title gold">Vuelta Rápida y Pole Position</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>🟣 Vuelta Rápida (+1 pto)</label>
+          <select id="fl-driver-select"><option value="">— Ninguno —</option></select>
+        </div>
+        <div class="form-group">
+          <label>⏱ Tiempo VR (mm:ss.sss)</label>
+          <input type="text" id="fl-time-input" placeholder="1:30.123" style="font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:0.05em;">
+        </div>
+        <div class="form-group">
+          <label>🟡 Pole Position (registro)</label>
+          <select id="pole-driver-select"><option value="">— Ninguno —</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-red" id="submit-race-btn" onclick="submitRace()">✅ Guardar y actualizar clasificación</button>
+      <button class="btn btn-dark" onclick="clearRaceForm()">🗑 Limpiar</button>
+    </div>
+
+    <div class="section-card" style="margin-top:24px;">
+      <div class="sc-title">Historial de GPs registrados</div>
+      <div id="gp-history-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-circuits">
+  <div id="circuits-list-view">
+    <div class="container">
+      <div class="admin-title">Grandes Premios</div>
+      <div id="circuit-grid-el" class="circuit-grid"></div>
+      <p id="no-circuits-msg" style="color:var(--muted);font-size:14px;display:none;">Aún no hay carreras registradas. Añade un GP desde la pestaña Carrera.</p>
+    </div>
+  </div>
+  <div id="circuits-detail-view" style="display:none;">
+    <div class="container">
+      <div style="cursor:pointer;padding:14px 0;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;" onclick="volverACalendario()">← Volver al Calendario</div>
+      <div id="circuit-detail-content"></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-teams">
+  <div id="teams-list-view">
+    <div class="container">
+      <div class="s-header">
+        <div class="header-logos">
+          <div class="logo-slot" onclick="uploadLogo('fia')" title="Clic para cambiar logo FIA">
+            <div class="fia-logo-el" id="fia-logo-el-teams">FIA</div>
+          </div>
+          <div class="logo-slot" onclick="uploadLogo('f1')" title="Clic para cambiar logo F1">
+            <div class="f1-logo-el" id="f1-logo-el-teams">F<span style="color:var(--red)">1</span></div>
+          </div>
+        </div>
+        <div class="champ-title-el logo-slot" id="champ-title-display-teams" onclick="editChampTitle()" title="Clic para editar título"></div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:8px;">
+          <div>
+            <div class="dot-row">+ + + + + + + + + + + + +<br>+ + + + + + + + + + + +</div>
+            <div class="big-title">CONSTRUCTOR<br>STANDINGS</div>
+            <div class="dot-row">+ + + + + + + + + + + + +</div>
+          </div>
+        </div>
+      </div>
+      <div id="teams-standings-el"></div>
+      <p id="no-teams-msg" style="color:var(--muted);font-size:14px;display:none;">Aún no hay pilotos registrados.</p>
+    </div>
+  </div>
+  <div id="teams-detail-view" style="display:none;">
+    <div class="container">
+      <div style="cursor:pointer;padding:14px 0;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;" onclick="showTeamsList()">← Volver a Escuderías</div>
+      <div id="team-detail-content"></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-duels">
+  <div class="container">
+    <div class="admin-title">Duelos</div>
+
+    <div class="duel-selector">
+      <div class="duel-pick" id="duel-pick-a">
+        <div class="duel-pick-label">PILOTO A</div>
+        <select id="duel-select-a" onchange="renderDuel()">
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+      <div class="duel-vs">VS</div>
+      <div class="duel-pick" id="duel-pick-b">
+        <div class="duel-pick-label">PILOTO B</div>
+        <select id="duel-select-b" onchange="renderDuel()">
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="duel-result"></div>
+    <div id="duel-export-btn-container" style="display:none;text-align:center;padding:16px 0 4px;">
+      <button class="btn btn-dark" onclick="exportDuelJPG()" style="font-size:13px;padding:10px 24px;">📸 Exportar duelo como imagen</button>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-penalties-public">
+  <div class="container">
+    <div class="admin-title">Sanciones</div>
+    <div id="penalties-public-list"></div>
+  </div>
+
+</div>
+
+<div class="view" id="view-penalties">
+  <div class="container">
+    <div class="admin-title">Sanciones</div>
+    <div class="section-card">
+      <div class="sc-title">Nueva sanción</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Piloto</label>
+          <select id="pen-driver-select"><option value="">— Seleccionar —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Gran Premio</label>
+          <select id="pen-race-select"><option value="">— Seleccionar —</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Infracción</label>
+          <input type="text" id="pen-type" placeholder="Ej: Colisión, Bandera azul...">
+        </div>
+        <div class="form-group">
+          <label>Sanción</label>
+          <input type="text" id="pen-sanction" placeholder="Ej: 5s, Drive-through, DQ...">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Nota</label>
+        <textarea id="pen-note" placeholder="Breve descripción de lo ocurrido..." style="min-height:60px;"></textarea>
+      </div>
+      <input type="hidden" id="pen-edit-id">
+      <div class="btn-row">
+        <button class="btn btn-red" onclick="submitPenalty()">✅ Añadir sanción</button>
+        <button class="btn btn-dark btn-sm" onclick="cancelPenalty()" id="pen-cancel-btn" style="display:none">✕ Cancelar</button>
+      </div>
+    </div>
+    <div id="penalties-table-container"></div>
+  </div>
+</div>
+
+<div class="view" id="view-drivers-admin">
+  <div class="container">
+    <div class="admin-title">👤 Gestión de Pilotos</div>
+    <div class="section-card">
+      <div class="sc-title">Añadir / Editar Piloto</div>
+      <input type="hidden" id="edit-driver-id">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre (apellido)</label><input type="text" id="driver-name-input" placeholder="APELLIDO"></div>
+        <div class="form-group"><label>Dorsal</label><input type="number" id="driver-number-input" placeholder="Nº" min="0" max="99"></div>
+        <div class="form-group"><label>Escudería</label>
+          <select id="driver-team-input">
+            <option value="team-mclaren">McLaren</option><option value="team-ferrari">Ferrari</option>
+            <option value="team-redbull">Red Bull</option><option value="team-mercedes">Mercedes</option>
+            <option value="team-aston">Aston Martin</option><option value="team-williams">Williams</option>
+            <option value="team-alpine">Alpine</option><option value="team-haas">Haas</option>
+            <option value="team-kick">Kick Sauber</option><option value="team-racing">Racing Bulls</option>
+            <option value="team-custom">Otra</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-red" onclick="saveDriver()">💾 Guardar</button>
+        <button class="btn btn-dark" onclick="cancelEditDriver()">Cancelar</button>
+      </div>
+    </div>
+    <div class="section-card">
+      <div class="sc-title">Pilotos registrados</div>
+      <div id="drivers-admin-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-settings">
+  <div class="container">
+    <div class="admin-title">Configuración</div>
+    <div class="section-card">
+      <div class="sc-title">Campeonato</div>
+      <div class="form-group" style="margin-bottom:10px;"><label>Título del campeonato</label><input type="text" id="champ-title-input"></div>
+      <button class="btn btn-red" onclick="saveSettings()">💾 Guardar</button>
+    </div>
+    <div class="section-card">
+      <div class="sc-title">Portada — Recordatorio próximo GP</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Color nombre del país</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="color" id="cfg-nextgp-name-color" style="width:44px;height:36px;padding:2px;cursor:pointer;">
+            <input type="text" id="cfg-nextgp-name-color-hex" placeholder="#D80621" style="flex:1;">
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">Vacío = color de la bandera del país</div>
+        </div>
+        <div class="form-group">
+          <label>Color ronda / fecha / días</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="color" id="cfg-nextgp-info-color" style="width:44px;height:36px;padding:2px;cursor:pointer;">
+            <input type="text" id="cfg-nextgp-info-color-hex" placeholder="#1a1a3e" style="flex:1;">
+          </div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Tipografía — nombre del país</label>
+          <select id="cfg-nextgp-name-font">
+            <option value="'Russo One',sans-serif">Russo One (predeterminada)</option>
+            <option value="'Barlow Condensed',sans-serif">Barlow Condensed</option>
+            <option value="'Arial',sans-serif">Arial</option>
+            <option value="'Georgia',serif">Georgia</option>
+            <option value="'Courier New',monospace">Courier New</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipografía — ronda / fecha / días</label>
+          <select id="cfg-nextgp-info-font">
+            <option value="'Barlow Condensed',sans-serif">Barlow Condensed (predeterminada)</option>
+            <option value="'Russo One',sans-serif">Russo One</option>
+            <option value="'Arial',sans-serif">Arial</option>
+            <option value="'Georgia',serif">Georgia</option>
+            <option value="'Courier New',monospace">Courier New</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Tamaño nombre del país (px)</label>
+          <input type="number" id="cfg-nextgp-name-size" min="6" max="32" placeholder="13">
+        </div>
+        <div class="form-group">
+          <label>Tamaño ronda / fecha / días (px)</label>
+          <input type="number" id="cfg-nextgp-info-size" min="6" max="24" placeholder="9">
+        </div>
+      </div>
+      <button class="btn btn-red" style="margin-top:12px;" onclick="saveNextGpTypo()">💾 Guardar tipografía y colores</button>
+    </div>
+    <div class="section-card">
+      <div class="sc-title">Sistema de puntos (posición → puntos de carrera)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Nota: la Vuelta Rápida siempre suma +1 punto adicional independientemente de este sistema.</p>
+      <table class="pts-tbl"><thead><tr><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th></tr></thead><tbody id="points-table-body"></tbody></table>
+      <div class="btn-row">
+        <button class="btn btn-red" onclick="savePointsSystem()">💾 Guardar puntos</button>
+        <button class="btn btn-dark btn-sm" onclick="loadF1Points()">F1 Estándar</button>
+        <button class="btn btn-dark btn-sm" onclick="loadSprintPoints()">Con Sprint</button>
+      </div>
+    </div>
+    <div class="section-card gold">
+      <div class="sc-title gold">Sistema de Puntos — Sprint Race</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Puntos para la Sprint (solo se aplican si marcas el GP como Sprint).</p>
+      <table class="pts-tbl"><thead><tr><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th></tr></thead><tbody id="sprint-points-table-body"></tbody></table>
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="saveSprintPointsSystem()">💾 Guardar Sprint</button>
+        <button class="btn btn-dark btn-sm" onclick="loadDefaultSprintPoints()">F1 Estándar Sprint</button>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">🔤 Tipografía</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Elige la fuente principal para nombres y títulos del campeonato.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;" id="font-picker">
+        <button class="font-choice" onclick="applyFont('Russo One')" data-font="Russo One" style="font-family:'Russo One',sans-serif;">Russo One</button>
+        <button class="font-choice" onclick="applyFont('Orbitron')" data-font="Orbitron" style="font-family:'Orbitron',sans-serif;">Orbitron</button>
+        <button class="font-choice" onclick="applyFont('Exo 2')" data-font="Exo 2" style="font-family:'Exo 2',sans-serif;">Exo 2</button>
+        <button class="font-choice" onclick="applyFont('Rajdhani')" data-font="Rajdhani" style="font-family:'Rajdhani',sans-serif;">Rajdhani</button>
+        <button class="font-choice" onclick="applyFont('Oswald')" data-font="Oswald" style="font-family:'Oswald',sans-serif;">Oswald</button>
+        <button class="font-choice" onclick="applyFont('Bebas Neue')" data-font="Bebas Neue" style="font-family:'Bebas Neue',sans-serif;">Bebas Neue</button>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">💾 Datos del campeonato</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Datos: el JSON sin imágenes (ligero). Imágenes: los .webp como ficheros sueltos.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-dark" onclick="exportData()">📤 Exportar datos (JSON)</button>
+        <button class="btn btn-dark" onclick="exportDataClean()" style="background:#2a4d3a;border-color:#3a6d4a;" title="Exporta solo datos del Mundial (sin imágenes), listo para data/data.json">🧹 Exportar data.json limpio</button>
+        <button class="btn btn-dark" onclick="document.getElementById('import-json-input').click()">📥 Importar datos (JSON)</button>
+        <button class="btn btn-dark" onclick="exportImagesAll()">🖼️ Exportar imágenes</button>
+        <button class="btn btn-dark" onclick="document.getElementById('import-images-input').click()">📥 Importar imágenes</button>
+      </div>
+      <input type="file" id="import-json-input" accept=".json,.txt" style="display:none" onchange="importData(event)">
+      <input type="file" id="import-images-input" accept="image/*" multiple style="display:none" onchange="importImagesMulti(event)">
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">🔤 Tipografías por Grupo</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Asigna una fuente a cada grupo de elementos. Puedes subir tus propias fuentes (.ttf, .otf, .woff) o elegir entre las disponibles.</p>
+
+      <!-- Custom font upload -->
+      <div style="background:var(--gray2);border:1px solid var(--border);padding:12px 14px;margin-bottom:16px;border-radius:2px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">📁 Subir fuente personalizada</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="custom-font-name" placeholder="Nombre (ej: MiFuente)" style="flex:1;min-width:120px;">
+          <button class="btn btn-dark" onclick="document.getElementById('custom-font-file').click()">📤 Elegir archivo</button>
+          <input type="file" id="custom-font-file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="uploadCustomFont()">
+        </div>
+        <div id="custom-fonts-list" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+
+      <!-- Group selectors -->
+      <div id="font-groups-editor"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">🔒 PIN de Administración</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Protege las pestañas de Carrera, Pilotos, Config. y Sanciones con un PIN de 4 dígitos.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text);">
+          <input type="checkbox" id="pin-enabled-toggle" onchange="togglePinEnabled()" style="width:16px;height:16px;">
+          Activar PIN de administración
+        </label>
+      </div>
+      <div id="pin-settings-body" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nuevo PIN (4 dígitos)</label>
+            <input type="password" id="pin-new-input" maxlength="4" pattern="[0-9]{4}" placeholder="••••" style="letter-spacing:0.3em;font-size:20px;max-width:120px;">
+          </div>
+          <div class="form-group">
+            <label>Confirmar PIN</label>
+            <input type="password" id="pin-confirm-input" maxlength="4" pattern="[0-9]{4}" placeholder="••••" style="letter-spacing:0.3em;font-size:20px;max-width:120px;">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-red" onclick="savePinSettings()">💾 Guardar PIN</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">🗑 Papelera de Carreras</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Las carreras eliminadas se guardan aquí. Puedes restaurarlas o borrarlas definitivame
+
+      <div id="trash-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-calendario">
+  <div class="container">
+    <div class="s-header" style="margin-bottom:16px;">
+      <div class="big-title" style="font-size:clamp(32px,6vw,56px);">CALENDARIO</div>
+      <div class="dot-row">+ + + + + + + + + + + + +</div>
+    </div>
+    <button class="btn btn-dark admin-only" onclick="openAddGP()" style="margin-bottom:20px;">+ Añadir GP</button>
+    <div id="calendario-list"></div>
+  </div>
+</div>
+
+<div id="add-gp-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:var(--gray);border:1px solid var(--border);padding:28px 24px;max-width:400px;width:90%;border-radius:4px;">
+    <div style="font-family:'Russo One',sans-serif;font-size:18px;margin-bottom:20px;color:var(--text);">AÑADIR GRAN PREMIO</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div><label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Ronda nº</label>
+        <input id="agp-round" type="number" min="1" placeholder="1" style="width:100%;"></div>
+      <div><label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Nombre del GP</label>
+        <input id="agp-name" type="text" placeholder="Gran Premio de España" style="width:100%;"></div>
+      <div><label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">País</label>
+        <input id="agp-country" type="text" placeholder="España" style="width:100%;"></div>
+      <div><label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Código bandera (2 letras, ej: ES)</label>
+        <input id="agp-flag" type="text" placeholder="ES" maxlength="2" style="width:100%;text-transform:uppercase;"></div>
+      <div><label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Fecha</label>
+        <input id="agp-date" type="date" style="width:100%;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-red" onclick="saveGP()" style="flex:1;">Guardar</button>
+      <button class="btn btn-dark" onclick="closeAddGP()" style="flex:1;">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-noticias">
+  <div class="container">
+    <div class="s-header" style="margin-bottom:20px;">
+      <div class="big-title" style="font-size:clamp(32px,6vw,56px);">NOTICIAS</div>
+      <div class="dot-row">+ + + + + + + + + + + + +</div>
+    </div>
+    <button class="btn btn-dark admin-only" onclick="openAddNoticia()" style="margin-bottom:20px;">+ Añadir noticia</button>
+    <div id="noticias-list"></div>
+  </div>
+</div>
+
+<!-- WET365 — Casa de Apuestas -->
+<div class="view" id="view-bets">
+  <div class="container">
+  <div class="wet365-shell">
+    <header class="wet365-hero">
+      <div class="wet365-brand">
+        <span class="wet365-logo-text">WET<span class="accent">365</span></span>
+        <span class="wet365-tag">CASA DE APUESTAS</span>
+      </div>
+      <div class="wet365-nextgp">
+        <span class="label">PRÓXIMO GP</span>
+        <span class="gp-name" id="wet365-gpname">—</span>
+        <span class="gp-date" id="wet365-gpdate">—</span>
+      </div>
+    </header>
+    <div id="wet365-body"></div>
+  </div>
+  </div>
+</div>
+
+<!-- CONTRARRELOJ — modo práctica (admin) -->
+<div class="view" id="view-timetrial">
+  <div class="container">
+  <div class="tt-shell">
+    <div class="tt-header">
+      <h2 class="tt-title">CONTRARRELOJ</h2>
+      <p class="tt-subtitle">Registro de mejores tiempos de práctica · alimenta las cuotas de WET365</p>
+    </div>
+    <div class="section-card">
+      <div class="form-group">
+        <label>Circuito</label>
+        <select id="tt-circuit-select" onchange="renderTimeTrialTable()"></select>
+      </div>
+    </div>
+    <div id="tt-table-container"></div>
+  </div>
+  </div>
+</div>
+
+
+
+<div id="add-noticia-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:var(--gray);border:1px solid var(--border);padding:28px 24px;max-width:460px;width:92%;border-radius:4px;max-height:90vh;overflow-y:auto;">
+    <div style="font-family:'Russo One',sans-serif;font-size:18px;margin-bottom:20px;color:var(--text);">AÑADIR NOTICIA</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Titular</label>
+        <input id="an-title" type="text" placeholder="Titular de la noticia" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Categoría / Etiqueta</label>
+        <input id="an-tag" type="text" placeholder="BREAKING · CARRERA · CLASIFICACIÓN..." style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Texto breve (opcional)</label>
+        <textarea id="an-body" rows="3" placeholder="Texto de la noticia..." style="width:100%;resize:vertical;"></textarea>
+      </div>
+      <div>
+        <label style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Foto</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-dark" onclick="document.getElementById('an-photo-input').click()">📷 Subir foto</button>
+          <span id="an-photo-name" style="font-size:11px;color:var(--muted);">Sin foto</span>
+        </div>
+        <input type="file" id="an-photo-input" accept="image/*" style="display:none" onchange="previewNoticiaPhoto(event)">
+        <img id="an-photo-preview" src="" style="display:none;max-width:100%;max-height:160px;object-fit:cover;margin-top:8px;border:1px solid var(--border);">
+        <input type="hidden" id="an-photo-data" value="">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-red" onclick="saveNoticia()" style="flex:1;">Guardar</button>
+      <button class="btn btn-dark" onclick="closeAddNoticia()" style="flex:1;">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+
+
+<!-- PIN OVERLAY -->
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;background:#050508;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="font-family:'Russo One',sans-serif;font-size:28px;color:white;letter-spacing:0.15em;">🔒 ADMINISTRACIÓN</div>
+  <div style="font-size:13px;color:#555;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.1em;text-transform:uppercase;">Introduce el PIN para continuar</div>
+  <div id="pin-dots" style="display:flex;gap:12px;margin:8px 0;">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,64px);gap:8px;">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key pin-key-clear" onclick="pinClear()">✕</button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key pin-key-ok" onclick="pinSubmit()">✓</button>
+  </div>
+  <div id="pin-error" style="color:var(--red);font-size:12px;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.1em;min-height:16px;"></div>
+  <button onclick="closePinOverlay()" style="background:none;border:1px solid #333;color:#444;padding:6px 16px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:0.1em;margin-top:8px;">Cancelar</button>
+</div>
+<div class="hem-lightbox" id="hem-lightbox" onclick="closeHemLightbox()">
+  <button class="hem-lightbox-close" onclick="closeHemLightbox()">✕</button>
+  <img id="hem-lightbox-img" src="" alt="Portada">
+</div>
+
+<div class="app-footer" id="app-footer" style="position:fixed;bottom:0;left:0;width:100%;z-index:9999;height:52px;display:flex!important;justify-content:center;">
+  <div class="footer-cover-btns" style="display:none;flex:2;height:100%;align-items:stretch;">
+    <button class="app-footer-action" onclick="exportCoverJPG()">📸 EXPORTAR</button>
+    <button class="app-footer-action app-footer-action-gold" onclick="saveCoverToHemeroteca()">📰 HEMEROTECA</button>
+  </div>
+  <div class="footer-logos-zone" style="display:flex;flex:1;height:100%;align-items:stretch;justify-content:center;">
+    <div class="app-footer-logo afl-0" onclick="uploadFooterLogo(0)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-1" onclick="uploadFooterLogo(1)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-2" onclick="uploadFooterLogo(2)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-3" onclick="uploadFooterLogo(3)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-4" onclick="uploadFooterLogo(4)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-5" onclick="uploadFooterLogo(5)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-6" onclick="uploadFooterLogo(6)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-7" onclick="uploadFooterLogo(7)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-8" onclick="uploadFooterLogo(8)"><span class="app-footer-logo-empty">+</span></div>
+    <div class="app-footer-logo afl-9" onclick="uploadFooterLogo(9)"><span class="app-footer-logo-empty">+</span></div>
+  </div>
+</div>
+
+<div id="auth-modal">
+  <div class="auth-modal-box">
+    <div class="auth-modal-title">ACCESO ADMIN</div>
+    <div class="auth-modal-sub">Introduce la contraseña</div>
+    <input class="auth-pin-input" id="auth-pin-input" type="password" maxlength="4"
+      placeholder="····" autocomplete="off"
+      oninput="if(this.value.length===4)checkAuthPin()"
+      onkeydown="if(event.key==='Enter')checkAuthPin()">
+    <div class="auth-error" id="auth-error"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-red" onclick="checkAuthPin()" style="flex:1;">Entrar</button>
+      <button class="btn btn-dark" onclick="closeAuthModal()" style="flex:1;">Cancelar</button>
+    </div>
+    <div id="auth-logout-row" style="display:none;margin-top:14px;">
+      <button onclick="logoutAuth()" style="background:none;border:none;color:var(--muted);font-size:11px;letter-spacing:0.1em;cursor:pointer;text-transform:uppercase;">Cerrar sesión admin</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
