@@ -3188,7 +3188,7 @@ function renderNoticias() {
         <span class="noticia-date-top">${n.date||''}</span>
       </div>
       <div class="noticia-main">
-        ${imgSrc('noticia_'+i) ? `<div class="noticia-photo"><img src="${imgSrc('noticia_'+i)}" alt="${n.title}"></div>` : '<div class="noticia-photo" style="background:var(--gray3);display:flex;align-items:center;justify-content:center;color:#333;font-size:28px;">📷</div>'}
+        ${imgSrc('noticia_'+i) ? `<div class="noticia-photo"><img src="${imgSrc('noticia_'+i)}" alt="${n.title}"></div>` : '<div class="noticia-photo" style="background:var(--gray3);display:flex;align-items:center;justify-content:center;color:#333;font-size:28px;"></div>'}
         <div class="noticia-body">
           <div class="noticia-title">${n.title}</div>
           ${n.tag ? `<span class="noticia-tag">${n.tag}</span>` : ''}
@@ -3549,7 +3549,7 @@ function initCover() {
   function bg(key, fallbackStyle) {
     const img = S.coverImages?.[key] || imgSrc('cover_'+key) || imgSrc('coverImg_'+key);
     if(img) return `<img class="cvr-bg" src="${img}" alt="">`;
-    return `<div class="cvr-upload-hint">📷</div>`;
+    return `<div class="cvr-upload-hint"></div>`;
   }
   function up(key) {
     return `<div class="cvr-upload-tap" onclick="uploadCoverImage('${key}')"></div>`;
@@ -3737,7 +3737,7 @@ function initCover() {
       ${['hero','hero2','hero3'].filter(k=>S.coverImages?.[k]||imgSrc('cover_'+k)).map((k,i)=>`
         <img class="cvr-hero-slide${i===0?' cvr-slide-active':''}" src="${S.coverImages?.[k]||imgSrc('cover_'+k)}" alt="">
       `).join('')}
-      ${!(S.coverImages?.hero||imgSrc('cover_hero'))&&!(S.coverImages?.hero2||imgSrc('cover_hero2'))&&!(S.coverImages?.hero3||imgSrc('cover_hero3')) ? `<div class="cvr-upload-hint" style="font-size:16px;flex-direction:column;gap:8px;z-index:2;"><span style="font-size:40px;opacity:0.15">📷</span>Imagen principal</div>` : ''}
+      ${!(S.coverImages?.hero||imgSrc('cover_hero'))&&!(S.coverImages?.hero2||imgSrc('cover_hero2'))&&!(S.coverImages?.hero3||imgSrc('cover_hero3')) ? `<div class="cvr-upload-hint" style="font-size:16px;flex-direction:column;gap:8px;z-index:2;">Imagen principal</div>` : ''}
       <div class="cvr-hero-dots" id="cvr-hero-dots">
         ${['hero','hero2','hero3'].map((k,i)=>`<span class="cvr-hero-dot${i===0?' active':''}" onclick="setCoverSlide(${i})"></span>`).join('')}
       </div>
@@ -3773,7 +3773,7 @@ function initCover() {
         <div style="display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;padding:0 3px;" onclick="uploadCoverImage('${key}')">
           ${(S.coverImages?.[key]||imgSrc('coverImg_'+key))
             ? `<img src="${S.coverImages?.[key]||imgSrc('coverImg_'+key)}" style="max-height:32px;max-width:90px;width:auto;object-fit:contain;display:block;" alt="">`
-            : `<div style="font-size:9px;color:#bbb;opacity:0.4;">📷</div>`}
+            : `<div></div>`}
         </div>`).join('')}
     </div>
 
@@ -4555,10 +4555,10 @@ function openProfile(driverId) {
   const sanctionsCount=(S.penalties||[]).filter(p=>p.driverId===driverId).length;
   const photoA=(profile.photoDataUrl||imgSrc('dp_'+driverId))
     ?`<img src="${profile.photoDataUrl||imgSrc('dp_'+driverId)}" alt="${driver.name}">`
-    :`<div class="photo-hint-overlay"><span style="font-size:28px;opacity:0.2">📷</span>Foto A</div>`;
+    :`<div class="photo-hint-overlay">Foto A</div>`;
   const photoB=(profile.photoB||imgSrc('pb_'+driverId))
     ?`<img src="${profile.photoB||imgSrc('pb_'+driverId)}" alt="${driver.name} B">`
-    :`<div class="photo-hint-overlay"><span style="font-size:28px;opacity:0.2">📷</span>Foto B</div>`;
+    :`<div class="photo-hint-overlay">Foto B</div>`;
   const teamBadgeImg=(profile.teamImgUrl||imgSrc('ti_'+driverId))
     ?`<img src="${profile.teamImgUrl||imgSrc('ti_'+driverId)}" alt="${teamName}">`
     :`<div class="logo-hint"><span style="font-size:28px;opacity:0.15">🏎</span>${TEAM_NAMES[driver.team]||'?'}</div>`;
@@ -4674,7 +4674,9 @@ function openProfile(driverId) {
           const stored = profile.trophies && profile.trophies[race.round];
           const src = stored || imgSrc(`trophy_${race.round}`);
           const gpShort = (race.name||'').replace(/^gran\\s+premio\\s+(de\\s+|del\\s+)?/i,'').toUpperCase();
-          return `<div class="palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span class="palm-slot-empty">🏆</span>'}</div>`;
+          const cc = race.cc || race.flag || '';
+          const flagImg = cc ? `<img class="palm-flag" src="assets/flags/${cc.toLowerCase()}_flag.webp" alt="" onerror="this.style.display='none'">` : '';
+          return `<div class="palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span class="palm-slot-empty">🏆</span>'}${flagImg}</div>`;
         }).join('');
       })()}
     </div>
@@ -4687,9 +4689,7 @@ function openProfile(driverId) {
       </div>
       <canvas id="driver-evo-${driverId}" style="width:100%;height:180px;max-height:180px;"></canvas>
     </div>
-    <div style="text-align:center;padding:16px 0 24px;">
-      <button class="btn btn-dark" onclick="exportProfileJPG(${driverId})" style="font-size:13px;padding:10px 24px;">📸 Exportar perfil como imagen</button>
-    </div>
+    
     </div>
   `;
   requestAnimationFrame(()=>renderDriverEvolutionChart(driverId));
@@ -4855,7 +4855,7 @@ function openTeam(teamKey) {
   const carSrc = (S.logos&&S.logos[`teamCar_${teamKey}`])||imgSrc('logo_teamCar_'+teamKey);
   const carImg = carSrc
     ? `<img src="${carSrc}" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;">`
-    : `<div style="color:rgba(255,255,255,0.18);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;z-index:2;">📷 Foto del coche</div>`;
+    : `<div style="color:rgba(255,255,255,0.18);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;z-index:2;">Foto del coche</div>`;
 
   // Per-driver cards (row 3)
   const driverCardsHTML = team.drivers.map(d=>{
@@ -4929,7 +4929,7 @@ function openTeam(teamKey) {
     <div class="td2-row1" style="background:${accent};">
       <div class="td2-car-slot" onclick="uploadTeamCar('${teamKey}')" title="Subir foto del coche">
         ${carImg}
-        <div class="td2-car-hint">📷</div>
+        <div class="td2-car-hint"></div>
       </div>
     </div>
 
@@ -4974,12 +4974,22 @@ function openTeam(teamKey) {
 
     <!-- ROW 5: Palmarés acumulado del equipo -->
     ${(() => {
-      const allTrophies = team.drivers.flatMap(d => Object.values((S.driverProfiles[d.id]||{}).trophies || {})).filter(t => t);
+      const driverIds = team.drivers.map(d => d.id);
+      const wins = (S.races||[]).filter(r => {
+        const winner = Object.entries(r.results||{}).find(([id,pos]) => pos===1);
+        return winner && driverIds.includes(parseInt(winner[0]));
+      }).sort((a,b) => (a.round||0) - (b.round||0));
       return `<div class="td2-palmares-band">
         <div class="palm-title">Palmarés del equipo</div>
-        ${allTrophies.length === 0
+        ${wins.length === 0
           ? `<div class="td2-palm-empty">Sin trofeos todavía</div>`
-          : allTrophies.map(t => `<div class="td2-palm-slot"><img src="${t}" alt=""></div>`).join('')}
+          : wins.map(race => {
+              const src = imgSrc(`trophy_${race.round}`);
+              const gpShort = (race.name||'').replace(/^gran\\s+premio\\s+(de\\s+|del\\s+)?/i,'').toUpperCase();
+              const cc = race.cc || race.flag || '';
+              const flagImg = cc ? `<img class="palm-flag" src="assets/flags/${cc.toLowerCase()}_flag.webp" alt="" onerror="this.style.display='none'">` : '';
+              return `<div class="td2-palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span style=\"font-size:24px;\">🏆</span>'}${flagImg}</div>`;
+            }).join('')}
       </div>`;
     })()}
 
@@ -5210,7 +5220,7 @@ function openCircuit(raceId) {
   const _circPhotoSrc=(S.logos&&S.logos[circuitPhotoKey])||imgSrc(circuitPhotoKey);
   const circuitPhoto=_circPhotoSrc
   ?`<img src="${_circPhotoSrc}" alt="Foto circuito">`
-  :`<div class="cd-hero-photo-hint"><span style="font-size:28px;opacity:0.2">📷</span>Foto circuito</div>`;
+  :`<div class="cd-hero-photo-hint">Foto circuito</div>`;
   const histText=getCircuitHistory(race);
   const before=isNextGp?[]:standingsBeforeRace(raceIndex);
   const after=isNextGp?[]:standingsAfterRace(raceIndex);
@@ -5303,7 +5313,7 @@ function openCircuit(raceId) {
   if (!isNextGp) {
     const circuitExportDiv = document.createElement('div');
     circuitExportDiv.style.cssText = 'text-align:center;padding:16px 0;';
-    circuitExportDiv.innerHTML = `<button class="btn btn-dark" onclick="exportCircuitJPG('${raceId}')" style="font-size:13px;padding:10px 24px;">📸 Exportar circuito como imagen</button>`;
+    circuitExportDiv.innerHTML = ``; // Botón de exportar eliminado
     document.getElementById('circuit-detail-content').appendChild(circuitExportDiv);
   }
 }
@@ -6512,6 +6522,23 @@ function showNotif(msg) {
   setTimeout(()=>n.classList.remove('show'),2800);
 }
 
+
+// Scroll horizontal sincronizado entre las filas de .race-chips
+(function() {
+  let syncing = false;
+  document.addEventListener('scroll', function(e) {
+    if (syncing) return;
+    const t = e.target;
+    if (!t || !t.classList || !t.classList.contains('race-chips')) return;
+    syncing = true;
+    const left = t.scrollLeft;
+    document.querySelectorAll('.race-chips').forEach(el => {
+      if (el !== t && el.scrollLeft !== left) el.scrollLeft = left;
+    });
+    requestAnimationFrame(() => { syncing = false; });
+  }, true);
+})();
+
 function initAuth() {
   // Check if already authenticated in this session
   const unlocked = sessionStorage.getItem('leala_auth') === '1';
@@ -6702,26 +6729,11 @@ async function autoLoadInitialData(){
   } catch(e){}
   try {
     const r = await fetch('data/data.json');
-    if (!r.ok) { console.log('No se encontró data/data.json'); return false; }
+    if (!r.ok) return false;
     const remote = await r.json();
     localStorage.setItem('leala_v2', JSON.stringify(remote));
-    console.log('✓ Datos del Mundial cargados desde data/data.json');
     return true;
-  } catch(e) { console.log('autoLoad falló:', e); return false; }
+  } catch(e) { return false; }
 }
-window.limpiarImagenesLocales = function(){
-  const n1 = Object.keys(S.logos||{}).length;
-  let n2 = 0;
-  if (S.driverProfiles) for (const id in S.driverProfiles) if (S.driverProfiles[id].trophies) n2 += Object.keys(S.driverProfiles[id].trophies).length;
-  if (!confirm(`¿Borrar ${n1} imágenes de logos + ${n2} trofeos del localStorage?\nLos DATOS del Mundial NO se tocan.`)) return;
-  S.logos = {};
-  if (S.driverProfiles) for (const id in S.driverProfiles) delete S.driverProfiles[id].trophies;
-  saveState(); alert('Limpieza completa. Recarga la página (F5).');
-};
-window.recargarDatosMundial = async function(){
-  if (!confirm('Esto sobrescribirá los datos locales con data/data.json. ¿Continuar?')) return;
-  localStorage.removeItem('leala_v2');
-  await autoLoadInitialData(); location.reload();
-};
 async function bootApp(){ await autoLoadInitialData(); init(); }
 bootApp();
