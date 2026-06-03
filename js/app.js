@@ -4676,7 +4676,7 @@ function openProfile(driverId) {
           const gpShort = (race.name||'').replace(/^gran\\s+premio\\s+(de\\s+|del\\s+)?/i,'').toUpperCase();
           const cc = race.cc || race.flag || '';
           const flagImg = cc ? `<img class="palm-flag" src="assets/flags/${cc.toLowerCase()}_flag.webp" alt="" onerror="this.style.display='none'">` : '';
-          return `<div class="palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span class="palm-slot-empty">🏆</span>'}${flagImg}</div>`;
+          return `<div class="palm-wrap"><div class="palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span class="palm-slot-empty">🏆</span>'}</div>${flagImg}</div>`;
         }).join('');
       })()}
     </div>
@@ -4988,7 +4988,7 @@ function openTeam(teamKey) {
               const gpShort = (race.name||'').replace(/^gran\\s+premio\\s+(de\\s+|del\\s+)?/i,'').toUpperCase();
               const cc = race.cc || race.flag || '';
               const flagImg = cc ? `<img class="palm-flag" src="assets/flags/${cc.toLowerCase()}_flag.webp" alt="" onerror="this.style.display='none'">` : '';
-              return `<div class="td2-palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span style=\"font-size:24px;\">🏆</span>'}${flagImg}</div>`;
+              return `<div class="td2-palm-wrap"><div class="td2-palm-slot" title="GP ${gpShort} — R${race.round}">${src?`<img src="${src}" alt="">`:'<span style=\"font-size:24px;\">🏆</span>'}</div>${flagImg}</div>`;
             }).join('')}
       </div>`;
     })()}
@@ -6478,6 +6478,16 @@ function _doShowView(name, btn) {
     const tog = document.getElementById('nav-admin-toggle');
     if (tog) tog.classList.add('admin-active');
   } else if (btn) { btn.classList.add('active'); }
+  // CAMPEONATO: standings + teams comparten botón nav
+  if (name === 'standings' || name === 'teams') {
+    const champBtn = document.getElementById('nav-championship-btn');
+    if (champBtn) champBtn.classList.add('active');
+  }
+  // WARCA: noticias + videos + bets comparten botón nav
+  if (name === 'noticias' || name === 'videos' || name === 'bets') {
+    const warcaBtn = document.getElementById('nav-warca-btn');
+    if (warcaBtn) warcaBtn.classList.add('active');
+  }
   if (name === 'cover')         { stopWaveAnimations(); initCover(); requestAnimationFrame(()=>requestAnimationFrame(startWaveAnimations)); }
   if (name === 'standings')     renderStandings();
   if (name === 'race') {
@@ -6520,6 +6530,18 @@ function _doShowView(name, btn) {
 function showNotif(msg) {
   const n=document.getElementById('notif'); if(!n)return; n.textContent=msg; n.classList.add('show');
   setTimeout(()=>n.classList.remove('show'),2800);
+}
+
+// Toggle entre PILOTOS y ESCUDERÍAS dentro de la pestaña CAMPEONATO
+function switchChampionship(mode) {
+  // mode = 'standings' o 'teams'
+  showView(mode, null);
+}
+
+// Toggle entre NOTICIAS, WTV y WET365 dentro de la pestaña WARCA
+function switchWarca(mode) {
+  // mode = 'noticias' | 'videos' | 'bets'
+  showView(mode, null);
 }
 
 

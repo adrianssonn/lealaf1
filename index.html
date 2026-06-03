@@ -40,14 +40,14 @@
 <body>
 
 <nav class="app-nav">
-  <button class="nav-btn nav-btn-portada" onclick="showView('cover',this)" title="Portada"><img src="assets/ui/home_ui.webp" alt="Portada" style="width:22px;height:22px;object-fit:contain;display:block;"></button><div class="nav-warca-wrap" style="position:relative;display:inline-block;"><button class="nav-btn" id="nav-warca-btn" onclick="toggleWarcaMenu()" title="WARCA"><img src="assets/ui/warca_ui.webp" alt="WARCA" style="width:22px;height:22px;object-fit:contain;display:block;"></button><div id="warca-dropdown" class="warca-dropdown" style="display:none;"><button class="warca-opt" onclick="warcaGo('noticias')">NOTICIAS</button><button class="warca-opt" onclick="warcaGo('videos')">WTV</button><button class="warca-opt" onclick="warcaGo('bets')">WET365</button></div></div>
-  <button class="nav-btn" onclick="showView('standings',this)" title="Clasificación"><img src="assets/ui/drivers_ui.webp" alt="Clasificación" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
-  <button class="nav-btn" onclick="showView('teams',this)" title="Escuderías"><img src="assets/ui/teams_ui.webp" alt="Escuderías" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
+  <button class="nav-btn nav-btn-portada" onclick="showView('cover',this)" title="Portada"><img src="assets/ui/home_ui.webp" alt="Portada" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
+  <button class="nav-btn" id="nav-warca-btn" onclick="showView('noticias',this)" title="WARCA"><img src="assets/ui/warca_ui.webp" alt="WARCA" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
+  <button class="nav-btn" id="nav-championship-btn" onclick="showView('standings',this)" title="Campeonato"><img src="assets/ui/drivers_ui.webp" alt="Campeonato" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
   <button class="nav-btn" onclick="showView('calendario',this)" title="Calendario"><img src="assets/ui/gp_ui.webp" alt="Calendario" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
   
   
   <button class="nav-btn" onclick="showView('duels',this)" title="Duelo"><img src="assets/ui/vs_ui.webp" alt="Duelo" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
-  <button class="nav-btn" onclick="showView('penalties-public',this)" title="Sanciones"><img src="assets/ui/sanctions_ui.webp" alt="Sanciones" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
+  <button class="nav-btn nav-btn-sanctions" onclick="showView('penalties-public',this)" title="Sanciones"><img src="assets/ui/sanctions_ui.webp" alt="Sanciones" style="width:22px;height:22px;object-fit:contain;display:block;"></button>
   
   
   <button class="nav-btn nav-tt-btn" onclick="showView('timetrial',this)" title="Contrarreloj"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1h6v2H9zm10.03 5.95-1.42 1.42A8.96 8.96 0 0 0 12 5c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.62l1.42-1.42-1.42-1.42zM13 14h-2V8h2v6z"/></svg></button>
@@ -74,6 +74,11 @@
 
 <div class="view" id="view-videos">
   <div class="container">
+    <div class="warca-toggle">
+      <button class="warca-toggle-btn" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
+      <button class="warca-toggle-btn active" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
+      <button class="warca-toggle-btn" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+    </div>
     <div class="s-header">
       <div class="big-title">WTV</div>
     </div>
@@ -154,6 +159,10 @@
 
 <div class="view" id="view-standings">
   <div class="container">
+    <div class="champ-toggle">
+      <button class="champ-toggle-btn active" data-mode="standings" onclick="switchChampionship('standings')">PILOTOS</button>
+      <button class="champ-toggle-btn" data-mode="teams" onclick="switchChampionship('teams')">ESCUDERÍAS</button>
+    </div>
     <div class="s-header">
       <div class="header-logos">
 
@@ -369,6 +378,10 @@
 <div class="view" id="view-teams">
   <div id="teams-list-view">
     <div class="container">
+      <div class="champ-toggle">
+        <button class="champ-toggle-btn" data-mode="standings" onclick="switchChampionship('standings')">PILOTOS</button>
+        <button class="champ-toggle-btn active" data-mode="teams" onclick="switchChampionship('teams')">ESCUDERÍAS</button>
+      </div>
       <div class="s-header">
         <div class="header-logos">
           <div class="logo-slot" onclick="uploadLogo('fia')" title="Clic para cambiar logo FIA">
@@ -700,6 +713,11 @@
 
 <div class="view" id="view-noticias">
   <div class="container">
+    <div class="warca-toggle">
+      <button class="warca-toggle-btn active" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
+      <button class="warca-toggle-btn" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
+      <button class="warca-toggle-btn" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+    </div>
     <div class="s-header" style="margin-bottom:20px;">
       <div class="big-title" style="font-size:clamp(32px,6vw,56px);">NOTICIAS</div>
       <div class="dot-row">+ + + + + + + + + + + + +</div>
@@ -712,6 +730,11 @@
 <!-- WET365 — Casa de Apuestas -->
 <div class="view" id="view-bets">
   <div class="container">
+  <div class="warca-toggle">
+    <button class="warca-toggle-btn" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
+    <button class="warca-toggle-btn" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
+    <button class="warca-toggle-btn active" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+  </div>
   <div class="wet365-shell">
     <header class="wet365-hero">
       <div class="wet365-brand">
@@ -822,16 +845,12 @@
     <button class="app-footer-action app-footer-action-gold" onclick="saveCoverToHemeroteca()">📰 HEMEROTECA</button>
   </div>
   <div class="footer-logos-zone" style="display:flex;flex:1;height:100%;align-items:stretch;justify-content:center;">
-    <div class="app-footer-logo afl-0" onclick="uploadFooterLogo(0)"><span class="app-footer-logo-empty">+</span></div>
-    <div class="app-footer-logo afl-1" onclick="uploadFooterLogo(1)"><span class="app-footer-logo-empty">+</span></div>
     <div class="app-footer-logo afl-2" onclick="uploadFooterLogo(2)"><span class="app-footer-logo-empty">+</span></div>
     <div class="app-footer-logo afl-3" onclick="uploadFooterLogo(3)"><span class="app-footer-logo-empty">+</span></div>
     <div class="app-footer-logo afl-4" onclick="uploadFooterLogo(4)"><span class="app-footer-logo-empty">+</span></div>
     <div class="app-footer-logo afl-5" onclick="uploadFooterLogo(5)"><span class="app-footer-logo-empty">+</span></div>
     <div class="app-footer-logo afl-6" onclick="uploadFooterLogo(6)"><span class="app-footer-logo-empty">+</span></div>
     <div class="app-footer-logo afl-7" onclick="uploadFooterLogo(7)"><span class="app-footer-logo-empty">+</span></div>
-    <div class="app-footer-logo afl-8" onclick="uploadFooterLogo(8)"><span class="app-footer-logo-empty">+</span></div>
-    <div class="app-footer-logo afl-9" onclick="uploadFooterLogo(9)"><span class="app-footer-logo-empty">+</span></div>
   </div>
 </div>
 
