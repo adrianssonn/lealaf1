@@ -6744,18 +6744,47 @@ function init() {
 }
 
 
+// Hash rápido (djb2) para detectar si el data.json remoto cambió
+function _quickHash(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 async function autoLoadInitialData(){
+  // 1) Pedimos SIEMPRE el data.json remoto, con cache-bust para evitar la caché del navegador
+  let remoteStr = null, remoteHash = null;
+  try {
+    const r = await fetch('data/data.json?t=' + Date.now(), { cache: 'no-store' });
+    if (r.ok) {
+      remoteStr = await r.text();
+      remoteHash = _quickHash(remoteStr);
+    }
+  } catch(e){ /* sin conexión o local file:// */ }
+
   try {
     const local = localStorage.getItem('leala_v2');
-    if (local) { const p = JSON.parse(local); if (p && p.races && p.races.length > 0) return false; }
+    const lastRemoteHash = localStorage.getItem('leala_v2_remoteH');
+
+    // Primera vez (no hay nada local) → cargar remoto si lo tenemos
+    if (!local) {
+      if (remoteStr) {
+        localStorage.setItem('leala_v2', remoteStr);
+        if (remoteHash) localStorage.setItem('leala_v2_remoteH', remoteHash);
+        return true;
+      }
+      return false;
+    }
+
+    // Si el remoto cambió respecto a la última vez que lo vimos, actualizamos.
+    // Si el remoto no cambió, respetamos el local (admin con cambios sin exportar).
+    if (remoteStr && remoteHash && remoteHash !== lastRemoteHash) {
+      localStorage.setItem('leala_v2', remoteStr);
+      localStorage.setItem('leala_v2_remoteH', remoteHash);
+      return true;
+    }
   } catch(e){}
-  try {
-    const r = await fetch('data/data.json');
-    if (!r.ok) return false;
-    const remote = await r.json();
-    localStorage.setItem('leala_v2', JSON.stringify(remote));
-    return true;
-  } catch(e) { return false; }
+  return false;
 }
 async function bootApp(){ await autoLoadInitialData(); init(); }
 bootApp();

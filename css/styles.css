@@ -6,6 +6,9 @@
 
 /* ── RESET & VARIABLES ── */
 :root{--red:#cc1717;--gold:#C9A84C;--gold-light:#F0C040;--black:#0A0A0A;--gray:#141414;--gray2:#1E1E1E;--gray3:#2A2A2A;--muted:#666;--text:#EEEEEE;--border:#2A2A2A;--nav-accent:#cc1717;--font-portada-title:'F1Titulo', sans-serif;--font-nav:'Barlow Condensed', sans-serif;--font-headings:'Russo One', sans-serif;--font-tables:'Barlow Condensed', sans-serif;--font-body:'Barlow Condensed', sans-serif;--font-numbers:'Russo One', sans-serif}
+/* Mantener el scrollbar vertical SIEMPRE visible para evitar saltos de ancho
+   cuando se cambia entre vistas con distinta altura. */
+html { overflow-y: scroll; }
 *{margin:0;padding:0;box-sizing:border-box;}
 @font-face {
      font-family: 'F1Titulo';
@@ -1785,6 +1788,21 @@ body.light-mode .warca-opt+.warca-opt{border-top:1px solid rgba(0,0,0,0.08);}
     max-height: 22px !important;
     max-width: 50px !important;
   }
+  /* Footer un 25% más bajo en móvil (52px → 39px) */
+  .app-footer { height: 39px !important; }
+}
+
+/* ───── Margen lateral en zona de sponsors del footer ───── */
+.footer-logos-zone {
+  padding-left: 8%;
+  padding-right: 8%;
+  box-sizing: border-box;
+}
+@media (max-width: 700px) {
+  .footer-logos-zone {
+    padding-left: 4%;
+    padding-right: 4%;
+  }
 }
 /* Banderita DEBAJO del trofeo (no superpuesta) — estilo "chip-wrap" de clasificación */
 .palm-wrap, .td2-palm-wrap {
@@ -1820,17 +1838,24 @@ body.light-mode .warca-opt+.warca-opt{border-top:1px solid rgba(0,0,0,0.08);}
    TOGGLE CAMPEONATO (PILOTOS / ESCUDERÍAS)
    y TOGGLE WARCA (NOTICIAS / WTV / WET365)
    =========================== */
+/* Por defecto = modo noche */
 .champ-toggle, .warca-toggle {
   display: flex;
   gap: 0;
   margin: 12px auto 16px;
   max-width: 360px;
-  background: var(--card, #1a1a1a);
-  border: 1px solid var(--border, #333);
+  background: #1a1a1a;
+  border: 1px solid #333;
   border-radius: 10px;
   padding: 4px;
   position: relative;
   z-index: 5;
+}
+/* Modo día */
+body.light-mode .champ-toggle,
+body.light-mode .warca-toggle {
+  background: #e4e0d8;
+  border-color: #c8c4bc;
 }
 .champ-toggle-btn, .warca-toggle-btn {
   flex: 1;
@@ -1847,8 +1872,17 @@ body.light-mode .warca-opt+.warca-opt{border-top:1px solid rgba(0,0,0,0.08);}
   transition: all .18s ease;
   text-transform: uppercase;
 }
+/* Texto inactivo en modo día */
+body.light-mode .champ-toggle-btn,
+body.light-mode .warca-toggle-btn {
+  color: #6a6660;
+}
 .champ-toggle-btn:hover, .warca-toggle-btn:hover {
   color: var(--text, #fff);
+}
+body.light-mode .champ-toggle-btn:hover,
+body.light-mode .warca-toggle-btn:hover {
+  color: #1a1a1a;
 }
 .champ-toggle-btn.active, .warca-toggle-btn.active {
   background: var(--red, #e10600);
@@ -1880,4 +1914,30 @@ body.light-mode .nav-btn > img {
 .nav-btn-sanctions > img,
 body.light-mode .nav-btn-sanctions > img {
   filter: none;
+}
+/* CALENDARIO: solo se invierten los colores (no se aplica brightness(0)),
+   para conservar los matices originales del icono. */
+.nav-btn-calendar > img {
+  filter: invert(1);
+}
+body.light-mode .nav-btn-calendar > img {
+  filter: none;
+}
+
+/* ===========================
+   SEPARADORES DIAGONALES entre iconos del nav
+   Toman el color del equipo del último ganador (var --nav-accent)
+   =========================== */
+.nav-btn { position: relative; }
+.nav-btn + .nav-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  background: var(--nav-accent, var(--red));
+  transform: skewX(-20deg);
+  pointer-events: none;
+  opacity: 0.85;
 }
