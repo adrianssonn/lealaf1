@@ -6734,7 +6734,9 @@ function init() {
   updateNavAccent();
   // Re-inject custom fonts
   Object.entries(S.customFonts||{}).forEach(([n,d])=>injectFontFace(n,d));
-  initCover();
+  // Portada: ya no usamos initCover() (la vieja). Si window.PORTADA está
+  // listo, renderiza ya; si no, bootApp lo hará tras autoLoadPortada().
+  try { renderPortadaCover(); } catch(e) { console.warn('renderPortadaCover en init:', e); }
   render();
   requestAnimationFrame(startWaveAnimations);
   try { renderFooterLogos(); } catch(e) { console.warn('renderFooterLogos en init falló:', e); }
@@ -7130,13 +7132,10 @@ async function resetPortadaToRemote(){
 
 
 async function bootApp(){
-  await autoLoadInitialData();
-  await autoLoadPortada();
+  // Cargamos en paralelo el data.json y el portada.json antes de init,
+  // así init() puede pintar la portada con datos ya disponibles.
+  await Promise.all([ autoLoadInitialData(), autoLoadPortada() ]);
   init();
-  // Si la vista activa al arrancar es la portada, renderiza.
-  if(document.getElementById('view-cover')?.classList.contains('active')){
-    renderPortadaCover();
-  }
   // Reajustar la portada si cambia el tamaño de la ventana (cambia el scale).
   let _portadaResizeT;
   window.addEventListener('resize', ()=>{

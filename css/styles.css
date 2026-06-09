@@ -1946,26 +1946,22 @@ body.light-mode .nav-btn-calendar > img {
    PORTADA WARCA (nueva — generador integrado)
    ════════════════════════════════════════════════════════════════════
    La portada está diseñada a 390px de ancho (todas sus medidas internas
-   son px fijos). Para escritorio escalamos con transform:scale(2.5) y
-   ajustamos la altura del wrapper para compensar. En móvil mantenemos
-   el tamaño nativo. */
+   son px fijos). Para escritorio escalamos con transform:scale y
+   ajustamos la altura del wrapper para compensar. */
 #view-cover .container{max-width:1000px;}
 .portada-cover{width:100%;display:flex;justify-content:center;padding:8px 0 24px;}
-.portada-scaler{width:390px;transform-origin:top center;}
-#portada{width:390px;position:relative;border-radius:4px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.5);}
+.portada-scaler{width:390px;max-width:100%;transform-origin:top center;}
+#portada{width:390px;max-width:100%;position:relative;border-radius:4px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.5);}
 
-/* Escritorio: escalar a 2.5x */
+/* Escritorio (≥1000px): escalar a 2.5x */
 @media (min-width:1000px){
   .portada-scaler{transform:scale(2.5);}
 }
-/* Pantallas intermedias: escalar lo que quepa */
+/* Tablet (600–999px): escalar a 1.5x */
 @media (min-width:600px) and (max-width:999px){
   .portada-scaler{transform:scale(1.5);}
 }
-/* Móvil: tamaño nativo 390px (o 100% si la pantalla es más estrecha) */
-@media (max-width:430px){
-  .portada-scaler,#portada{width:100%;}
-}
+/* Móvil (<600px): tamaño nativo, sin escalar */
 
 /* cabecera */
 .p-hdr-txt{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;}
