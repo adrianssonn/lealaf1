@@ -6,7 +6,7 @@
 <title>LEALA F1 WORLD CHAMPIONSHIP</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,700&family=Barlow:wght@300;400;500;600&family=Anton&family=Bebas+Neue&family=Racing+Sans+One&family=Oswald:wght@400;600;700&family=Teko:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 
 <script>
@@ -66,10 +66,11 @@
   </div>
 </nav>
 
-<!-- ══ PORTADA ══ -->
-<div class="view active" id="view-cover" style="width:100%;padding:0;margin:0;">
-  <div id="cover-root" class="cover-root"></div>
-
+<!-- ══ PORTADA (nueva — generador WARCA) ══ -->
+<div class="view active" id="view-cover">
+  <div class="container">
+    <div id="portada-cover" class="portada-cover"></div>
+  </div>
 </div>
 
 <div class="view" id="view-videos">
@@ -519,6 +520,19 @@
 <div class="view" id="view-settings">
   <div class="container">
     <div class="admin-title">Configuración</div>
+    <div class="section-card">
+      <div class="sc-title">Portada WARCA</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        La portada se carga automáticamente desde <code>data/portada.json</code>.
+        Si quieres sobrescribirla manualmente, importa aquí el JSON exportado desde el generador WARCA.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-red" onclick="document.getElementById('portada-import-input').click()">📥 Importar portada (JSON)</button>
+        <button class="btn btn-dark" onclick="resetPortadaToRemote()">↺ Restaurar desde servidor</button>
+        <input type="file" id="portada-import-input" accept="application/json,.json" style="display:none" onchange="importPortadaJSON(this)">
+      </div>
+      <div id="portada-import-status" style="font-size:11px;color:var(--muted);margin-top:8px;"></div>
+    </div>
     <div class="section-card">
       <div class="sc-title">Campeonato</div>
       <div class="form-group" style="margin-bottom:10px;"><label>Título del campeonato</label><input type="text" id="champ-title-input"></div>

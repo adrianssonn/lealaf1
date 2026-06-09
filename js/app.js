@@ -6488,7 +6488,7 @@ function _doShowView(name, btn) {
     const warcaBtn = document.getElementById('nav-warca-btn');
     if (warcaBtn) warcaBtn.classList.add('active');
   }
-  if (name === 'cover')         { stopWaveAnimations(); initCover(); requestAnimationFrame(()=>requestAnimationFrame(startWaveAnimations)); }
+  if (name === 'cover')         { renderPortadaCover(); }
   if (name === 'standings')     renderStandings();
   if (name === 'race') {
     const editActive = document.getElementById('edit-race-id')?.value;
@@ -6503,7 +6503,7 @@ function _doShowView(name, btn) {
   if (name === 'teams')         { renderTeams(); showTeamsList(); }
   if (name === 'duels')         { populateDuelSelects(); renderDuel(); }
   if (name === 'penalties')     renderPenalties();
-  if (name === 'cover')           { initCover(); }
+  if (name === 'cover')           { renderPortadaCover(); }
   if (name === 'hemeroteca')      renderHemeroteca();
   if (name === 'videos')          renderVideos();
   if (name === 'penalties-public') renderPenaltiesPublic();
@@ -6786,5 +6786,366 @@ async function autoLoadInitialData(){
   } catch(e){}
   return false;
 }
-async function bootApp(){ await autoLoadInitialData(); init(); }
+// ════════════════════════════════════════════════════════════════════════
+// PORTADA WARCA — motor estático alimentado por data/portada.json
+// ════════════════════════════════════════════════════════════════════════
+// Estructura esperada del JSON (formato exportado por el generador WARCA v4):
+//   { _version, inputs:{...}, state:{ logoSrc, bgSrc, badgeSrc, resImgSrc,
+//     fonts:{t1,t2,t3,tag}, resIcon, news:[{...}] } }
+// Se almacena en window.PORTADA y, manualmente importado, también en localStorage
+// bajo 'leala_portada_v1' (con prioridad sobre data/portada.json hasta que se
+// pulse "Restaurar desde servidor").
+
+window.PORTADA = null;
+
+const _PORTADA_ICONS = {
+  flag:   c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M4 21V4m0 0h12l-3 4 3 4H4"/></svg>`,
+  trophy: c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><path d="M8 21h8M12 17v4M7 4H4v2a4 4 0 004 4h1m6-6h3v2a4 4 0 01-4 4h-1m-3 0V4h6v6.5"/></svg>`,
+  helmet: c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><path d="M12 3C7 3 3 7.5 3 12v2h4v-2a5 5 0 0110 0v2h4v-2c0-4.5-4-9-9-9z"/><rect x="3" y="14" width="18" height="3" rx="1.5"/></svg>`,
+  team:   c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 21a6 6 0 0112 0M11 21a6 6 0 0112 0" opacity=".6"/></svg>`,
+  star:   c=>`<svg viewBox="0 0 24 24" fill="${c}"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`,
+  fire:   c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><path d="M12 2c0 6-6 6-6 12a6 6 0 0012 0c0-4-2-6-2-9-1 2-1 4-4 4 2-3 0-7 0-7z"/></svg>`,
+  podium: c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><rect x="9" y="9" width="6" height="12"/><rect x="3" y="13" width="6" height="8"/><rect x="15" y="11" width="6" height="10"/></svg>`,
+  none:   ()=>'',
+};
+
+function _pEsc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function _pHexRgb(hex){
+  hex=(hex||'#000').replace('#','');
+  if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  const n=parseInt(hex,16);
+  return `${(n>>16)&255},${(n>>8)&255},${n&255}`;
+}
+
+function renderPortadaCover(){
+  const portada = document.getElementById('portada-cover');
+  if(!portada) return;
+
+  // Caja interna donde realmente se pinta (id='portada' para compat con estilos).
+  // La envolvemos en .portada-scaler para poder aplicar transform:scale sin
+  // romper el diseño px-fijo del generador.
+  portada.innerHTML = '<div class="portada-scaler"><div id="portada"></div></div>';
+  const scaler = portada.querySelector('.portada-scaler');
+  const target = portada.querySelector('#portada');
+
+  const P = window.PORTADA;
+  if(!P){
+    target.innerHTML = '<div style="padding:60px 20px;text-align:center;color:#888;font-family:\'Barlow Condensed\',sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase;">Portada no cargada<br><span style="font-size:11px;opacity:.6;">Importa una portada desde Configuración (admin)</span></div>';
+    return;
+  }
+
+  const I = P.inputs || {};
+  const ST = P.state || {};
+  const fonts = ST.fonts || {};
+  const news  = Array.isArray(ST.news) ? ST.news : [];
+  const fnum = (k,def)=>{ const x=parseFloat(I[k]); return isNaN(x)?def:x; };
+  const vstr = (k,def)=>{ const x=I[k]; return (x==null||x==='')?def:String(x); };
+
+  // —— extracción de campos ————————————————————————————————
+  const hdrBg     = vstr('hdr-bg','#FF8000');
+  const hdrOpacity= (fnum('hdr-opacity',100))/100;
+  const hdrH      = fnum('hdr-h',28);
+  const metaColor = vstr('meta-color','#fff');
+  const logoW     = fnum('logo-w',80);
+  const logoTop   = fnum('logo-top',16);
+  const logoColor = vstr('logo-color','#fff');
+  const tagFont   = fonts.tag || 'Barlow Condensed';
+  const tagSz     = fnum('tag-sz',10);
+  const tagColor  = vstr('tag-color','#fff');
+  const tagGap    = fnum('tag-gap',4);
+  const hdrNum    = vstr('hdr-num','');
+  const hdrFecha  = vstr('hdr-fecha','');
+  const hdrPrice  = vstr('hdr-price','');
+  const hdrTag    = vstr('hdr-tag','');
+
+  const bgH       = fnum('bg-h',340);
+  const gradOp    = (fnum('grad-op',72))/100;
+  const gradColor = vstr('grad-color','#000');
+  const gradDir   = vstr('grad-dir','to top');
+
+  const lblShow   = vstr('lbl-show','0')!=='0';
+  const lblPre    = vstr('lbl-pre','');
+  const lblEvt    = vstr('lbl-evt','');
+  const lblPillBg = vstr('lbl-pill-bg','#E10600');
+  const lblPillFg = vstr('lbl-pill-fg','#fff');
+  const lblEvtFg  = vstr('lbl-evt-fg','#111');
+  const lblBg     = vstr('lbl-bg','#FF8000');
+  const lblSz     = fnum('lbl-sz',11);
+  const lblBottom = fnum('lbl-bottom',140);
+
+  const t1=vstr('t1',''),    t1sz=fnum('t1-sz',72), t1c=vstr('t1-color','#fff'), t1f=fonts.t1||'Anton';
+  const t2=vstr('t2',''),    t2sz=fnum('t2-sz',30), t2c=vstr('t2-color','#FF8000'), t2f=fonts.t2||'Anton';
+  const tGap=fnum('t-gap',0);
+  const t3=vstr('t3',''),    t3sz=fnum('t3-sz',13), t3c=vstr('t3-color','#fff'), t3f=fonts.t3||'Barlow Condensed';
+  const t3style=vstr('t3-style','italic');
+
+  const tickerTxt  =vstr('ticker-txt','');
+  const tickerColor=vstr('ticker-color','#999');
+
+  const badgeShow=vstr('badge-show','0')!=='0';
+  const badgeTxt =vstr('badge-txt','');
+  const badgeBg  =vstr('badge-bg','#FF8000');
+  const badgeFg  =vstr('badge-fg','#fff');
+
+  const bannerShow=vstr('banner-show','0')==='1';
+  const bannerTxt =vstr('banner-txt','');
+  const bannerBg  =vstr('banner-bg','#fff');
+  const bannerFg  =vstr('banner-fg','#111');
+  const bannerMy  =fnum('banner-my',6);
+
+  const resTitle    =vstr('res-title','');
+  const resList     =vstr('res-list','').trim().split('\n').filter(l=>l.trim());
+  const resBg       =vstr('res-bg','#E10600');
+  const resFg       =vstr('res-fg','#fff');
+  const resImgH     =fnum('res-img-h',0);
+  const resIconShow =vstr('res-icon-show','0')!=='0';
+  const resIconKey  =ST.resIcon||'flag';
+
+  const cardRadius=fnum('card-radius',14);
+  const cardGap   =fnum('card-gap',6);
+  const gridPad   =fnum('grid-pad',14);
+  const gridMt    =fnum('grid-mt',6);
+  const gridMb    =fnum('grid-mb',14);
+  const imgRadius =fnum('img-radius',14);
+  const imgMx     =fnum('img-mx',14);
+
+  const pageBg    =vstr('page-bg','#f0ede8');
+  target.style.background=pageBg;
+  target.style.padding='0';
+
+  // página fondo (para que se vea el color por debajo del 390px en el container)
+  const cover = document.getElementById('portada-cover');
+  if(cover) cover.style.background = '';
+
+  function colorWithOpacity(hex, opacity){
+    if(opacity>=1) return hex;
+    return `rgba(${_pHexRgb(hex)},${opacity})`;
+  }
+
+  // —— logo ——————————————————————————————————————
+  const logoFontSize=Math.round(logoW*3.6);
+  const logoHTML=ST.logoSrc
+    ?`<img class="p-logo-img" src="${ST.logoSrc}" alt="WARCA" style="width:${logoW}%;height:auto">`
+    :`<div class="p-logo-fallback" style="font-size:${logoFontSize*logoW/100}px;color:${logoColor};-webkit-text-stroke:2px ${logoColor}">WARCA</div>`;
+
+  // —— etiqueta evento ——————————————————————
+  const lblHTML=lblShow?`
+    <div style="position:absolute;bottom:${lblBottom}px;left:12px;right:12px;z-index:15">
+      <div class="p-evt-lbl" style="background:${lblBg};font-size:${lblSz}px;border-radius:5px">
+        <span class="p-evt-pill" style="background:${lblPillBg};color:${lblPillFg};font-size:${lblSz}px;border-radius:4px">${_pEsc(lblPre)}</span>
+        <span style="color:${lblEvtFg}">${_pEsc(lblEvt)}</span>
+      </div>
+    </div>`:'';
+
+  // —— badge ——————————————————————————————
+  const badgeHTML=badgeShow?`
+    <div class="p-badge" style="background:${badgeBg};border-radius:0 0 ${imgRadius}px 0">
+      ${ST.badgeSrc?`<img src="${ST.badgeSrc}" alt="">`:
+        `<svg viewBox="0 0 24 24" fill="none" stroke="${badgeFg}" stroke-width="1.8" style="width:32px;height:32px"><path d="M3 3l7.07 13.93 2-3.93 4 .93L12 3H3z"/></svg>`}
+      <div class="p-badge-text" style="color:${badgeFg}">${_pEsc(badgeTxt)}</div>
+    </div>`:'';
+
+  // —— titular band ——————————————————————
+  const titBandHTML=`
+    <div class="p-tit-band">
+      <div class="p-tit-main">
+        <div class="p-tit1" style="font-family:'${t1f}',sans-serif;font-size:${t1sz}px;color:${t1c}">${_pEsc(t1)}</div>
+        <div class="p-tit2" style="font-family:'${t2f}',sans-serif;font-size:${t2sz}px;color:${t2c};margin-top:${tGap}px">${_pEsc(t2)}</div>
+      </div>
+      <div class="p-tit-side">
+        <div class="p-side-txt" style="font-family:'${t3f}',sans-serif;font-size:${t3sz}px;color:${t3c};font-style:${t3style}">${_pEsc(t3).replace(/\n/g,'<br>')}</div>
+      </div>
+    </div>`;
+
+  // —— bloque imagen ——————————————————————
+  const imgBlockHTML=`
+    <div style="margin:0 ${imgMx}px 0;position:relative">
+      <div class="p-img-inner" style="height:${bgH}px;border-radius:${imgRadius}px">
+        ${ST.bgSrc?`<img class="bg-img" src="${ST.bgSrc}" alt="">`:
+          `<div class="p-img-placeholder">IMAGEN PRINCIPAL</div>`}
+        <div class="p-grad" style="background:linear-gradient(${gradDir},rgba(${_pHexRgb(gradColor)},${gradOp}) 0%,rgba(0,0,0,0) 55%)"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:${hdrH}px;background:${colorWithOpacity(hdrBg,hdrOpacity)};display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:5;border-radius:${imgRadius}px ${imgRadius}px 0 0">
+          <span class="p-hdr-txt" style="color:${metaColor}">${_pEsc(hdrNum)}${hdrFecha?' · '+_pEsc(hdrFecha):''}</span>
+          <span class="p-hdr-txt" style="color:${metaColor}">${_pEsc(hdrPrice)}</span>
+        </div>
+        <div class="p-logo-layer" style="top:${logoTop}px">
+          ${logoHTML}
+          <div class="p-tagline" style="font-family:'${tagFont}',sans-serif;font-size:${tagSz}px;color:${tagColor};margin-top:${tagGap}px">${_pEsc(hdrTag)}${hdrNum?' · '+_pEsc(hdrNum):''}</div>
+        </div>
+        ${badgeHTML}
+        ${lblHTML}
+        ${titBandHTML}
+      </div>
+    </div>`;
+
+  // —— banner ——————————————————————————————
+  const bannerHTML=bannerShow?`
+    <div class="p-banner" style="background:${bannerBg};margin:${bannerMy}px ${gridPad}px;padding:9px 14px;border-radius:${cardRadius}px">
+      <svg viewBox="0 0 24 24" fill="${bannerFg}"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      <div class="p-banner-text" style="color:${bannerFg}">${_pEsc(bannerTxt)}</div>
+    </div>`:'';
+
+  // —— ticker ——————————————————————————————
+  const tickerHTML=tickerTxt?`<div class="p-ticker" style="color:${tickerColor};margin:5px ${gridPad}px 0">${_pEsc(tickerTxt)}</div>`:'';
+
+  // —— grid noticias ——————————————————————
+  const totalCols=1+news.length;
+  const colTpl=totalCols===1?'1fr':totalCols===2?'1fr 1fr':totalCols===3?'1fr 1fr 1fr':'repeat(4,1fr)';
+
+  const resCard=`
+    <div class="p-news-card" style="background:${resBg};border-radius:${cardRadius}px">
+      ${resImgH>0?(ST.resImgSrc
+        ?`<img class="p-card-img-top" src="${ST.resImgSrc}" alt="" style="height:${resImgH}px">`
+        :`<div class="p-card-img-ph" style="height:${resImgH}px"></div>`):''}
+      <div class="p-card-body">
+        <div class="p-res-label" style="color:${resFg}">
+          ${resIconShow&&resIconKey!=='none'?_PORTADA_ICONS[resIconKey](resFg):''}
+          ${_pEsc(resTitle)}
+        </div>
+        <div class="p-res-list" style="color:${resFg}"><ol>${resList.map(p=>`<li>${_pEsc(p)}</li>`).join('')}</ol></div>
+      </div>
+    </div>`;
+
+  const newsCards=news.map(n=>{
+    const tc=n.titleColor||n.fg, sc=n.subColor||n.fg, bc=n.bodyColor||n.fg;
+    const iconShow = (n.iconShow===true)||(n.iconShow==='True')||(n.iconShow==='true')||(n.iconShow==='1');
+    const titleSz = parseFloat(n.titleSz)||16;
+    return `
+    <div class="p-news-card" style="background:${n.bg};border-radius:${cardRadius}px">
+      ${parseFloat(n.imgH)>0?(n.imgSrc
+        ?`<img class="p-card-img-top" src="${n.imgSrc}" alt="" style="height:${n.imgH}px;object-fit:cover">`
+        :`<div class="p-card-img-ph" style="height:${n.imgH}px;background:rgba(0,0,0,.2)"></div>`):''}
+      <div class="p-card-body">
+        <div class="p-card-title-row">
+          ${iconShow&&n.icon&&n.icon!=='none'?`<div style="color:${tc};flex-shrink:0;width:${titleSz-2}px;height:${titleSz-2}px">${_PORTADA_ICONS[n.icon](tc)}</div>`:''}
+          <div class="p-card-title" style="font-family:'${n.titleFont}',sans-serif;font-size:${titleSz}px;color:${tc}">${_pEsc(n.title)}</div>
+        </div>
+        <div class="p-card-sub" style="font-family:'${n.subFont}',sans-serif;font-size:${n.subSz}px;color:${sc}">${_pEsc(n.sub)}</div>
+        <div class="p-card-body-txt" style="font-family:'${n.bodyFont}',sans-serif;font-size:${n.bodySz}px;color:${bc};opacity:.9">${_pEsc(n.body)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const newsGridHTML=`
+    <div class="p-news-grid" style="grid-template-columns:${colTpl};gap:${cardGap}px;padding:${gridMt}px ${gridPad}px ${gridMb}px">
+      ${resCard}${newsCards}
+    </div>`;
+
+  target.innerHTML = imgBlockHTML + bannerHTML + tickerHTML + newsGridHTML;
+
+  // Compensar la altura ocupada por el transform:scale del .portada-scaler.
+  // El navegador reserva siempre la altura nativa (390px de ancho); tras un
+  // scale(N) el elemento ocupa visualmente N veces más, así que hay que
+  // empujar al wrapper para que el contenido siguiente no se solape.
+  requestAnimationFrame(()=>{
+    const realH = target.getBoundingClientRect().height; // ya tiene en cuenta el scale
+    const nativeH = target.offsetHeight; // altura sin escalar
+    if(nativeH > 0){
+      const extra = realH - nativeH;
+      scaler.style.marginBottom = (extra > 0 ? extra : 0) + 'px';
+    }
+  });
+}
+
+// ─── Carga automática desde data/portada.json + override de localStorage ───
+async function loadPortadaFromRemote(){
+  try{
+    const r = await fetch('data/portada.json?t=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+async function autoLoadPortada(){
+  // Prioridad: localStorage (override manual) → remote
+  try{
+    const local = localStorage.getItem('leala_portada_v1');
+    if(local){
+      window.PORTADA = _sanitizePortada(JSON.parse(local));
+      return;
+    }
+  }catch(e){}
+  const remote = await loadPortadaFromRemote();
+  if(remote) window.PORTADA = _sanitizePortada(remote);
+}
+
+// Limpia valores 'None'/'null' tipo Python que pueda traer el JSON exportado.
+function _sanitizePortada(P){
+  if(!P || !P.state) return P;
+  const ST = P.state;
+  ['logoSrc','bgSrc','badgeSrc','resImgSrc'].forEach(k=>{
+    if(ST[k]==='None' || ST[k]==='null' || ST[k]==='') ST[k]=null;
+  });
+  if(Array.isArray(ST.news)){
+    ST.news.forEach(n=>{
+      if(n.imgSrc==='None'||n.imgSrc==='null'||n.imgSrc==='') n.imgSrc=null;
+    });
+  }
+  return P;
+}
+
+// ─── Importar manualmente desde el panel admin ───
+function importPortadaJSON(input){
+  if(!input || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  try{ input.value=''; }catch(e){}
+  const r = new FileReader();
+  r.onload = e => {
+    try{
+      const payload = _sanitizePortada(JSON.parse(e.target.result));
+      window.PORTADA = payload;
+      try{ localStorage.setItem('leala_portada_v1', JSON.stringify(payload)); }catch(err){
+        // Cuota localStorage: avisamos pero seguimos en memoria
+        const st = document.getElementById('portada-import-status');
+        if(st) st.textContent = '⚠ Cargada en memoria (localStorage lleno, no persiste tras refresco)';
+      }
+      const st = document.getElementById('portada-import-status');
+      if(st && !st.textContent) st.textContent = '✓ Portada importada y guardada localmente';
+      renderPortadaCover();
+      if(typeof showNotif==='function') showNotif('Portada importada');
+    }catch(err){
+      const st = document.getElementById('portada-import-status');
+      if(st) st.textContent = '✗ Error al leer JSON: ' + err.message;
+      alert('Error al leer el JSON de portada: ' + err.message);
+    }
+  };
+  r.readAsText(file);
+}
+
+async function resetPortadaToRemote(){
+  try{ localStorage.removeItem('leala_portada_v1'); }catch(e){}
+  const remote = await loadPortadaFromRemote();
+  if(remote){
+    window.PORTADA = _sanitizePortada(remote);
+    renderPortadaCover();
+    const st = document.getElementById('portada-import-status');
+    if(st) st.textContent = '✓ Restaurada desde data/portada.json';
+    if(typeof showNotif==='function') showNotif('Portada restaurada');
+  } else {
+    const st = document.getElementById('portada-import-status');
+    if(st) st.textContent = '✗ No se pudo cargar data/portada.json';
+  }
+}
+
+
+
+async function bootApp(){
+  await autoLoadInitialData();
+  await autoLoadPortada();
+  init();
+  // Si la vista activa al arrancar es la portada, renderiza.
+  if(document.getElementById('view-cover')?.classList.contains('active')){
+    renderPortadaCover();
+  }
+  // Reajustar la portada si cambia el tamaño de la ventana (cambia el scale).
+  let _portadaResizeT;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(_portadaResizeT);
+    _portadaResizeT = setTimeout(()=>{
+      if(document.getElementById('view-cover')?.classList.contains('active')){
+        renderPortadaCover();
+      }
+    }, 150);
+  });
+}
 bootApp();
