@@ -6572,6 +6572,8 @@ async function autoLoadHemeroteca(){
     // Locales no presentes en remoto → trabajo no publicado, se mantiene al final
     const onlyLocal = local.filter(e => !remoteIds.has(String(e.id)));
     S.hemeroteca = [...remote, ...onlyLocal];
+    // Persistimos el merge para que la próxima carga ya tenga las remotas.
+    try { saveState(); } catch(e){}
   }catch(e){ /* silencioso: si no existe el archivo, seguimos con la local */ }
 }
 
@@ -6661,10 +6663,15 @@ async function bootApp(){
   // Cargamos en paralelo el data.json y el portada.json antes de init,
   // así init() puede pintar la portada con datos ya disponibles.
   await Promise.all([ autoLoadInitialData(), autoLoadPortada() ]);
-  // La hemeroteca debe cargarse tras autoLoadInitialData (que puede haber
-  // rellenado S.hemeroteca desde data.json); el merge respeta lo local no publicado.
-  await autoLoadHemeroteca();
   init();
+  // La hemeroteca se carga DESPUÉS de init(), porque init() es quien hidrata
+  // S desde localStorage. Si lo hiciésemos antes, init() pisaría las entradas
+  // remotas con la versión local vieja.
+  await autoLoadHemeroteca();
+  // Si la pestaña hemeroteca está activa al arrancar, re-renderizamos.
+  if(document.getElementById('view-hemeroteca')?.classList.contains('active')){
+    if(typeof renderHemeroteca==='function') renderHemeroteca();
+  }
   // Reajustar la portada si cambia el ANCHO de la ventana (cambia el scale).
   // Ignoramos cambios solo de altura: en móvil la barra de URL aparece/desaparece
   // con el scroll y eso dispararía un resize que reiniciaría la marquesina.
