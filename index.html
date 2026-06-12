@@ -61,6 +61,7 @@
       <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('race',null);">CARRERA</button>
       <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('penalties',null);">Sanciones</button>
       <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('drivers-admin',null);">PILOTOS</button>
+      <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('portadaeditor',null);">PORTADA</button>
       <button class="nav-admin-item" onclick="closeAdminMenu();_doShowView('settings',null);">CONFIG.</button>
     </div>
   </div>
@@ -79,6 +80,7 @@
       <button class="warca-toggle-btn" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
       <button class="warca-toggle-btn active" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
       <button class="warca-toggle-btn" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+      <button class="warca-toggle-btn" data-mode="hemeroteca" onclick="switchWarca('hemeroteca')">HEMEROTECA</button>
     </div>
     <div class="s-header">
       <div class="big-title">WTV</div>
@@ -151,11 +153,19 @@
 
 <div class="view" id="view-hemeroteca">
   <div class="container">
-    <div class="admin-title">Hemeroteca</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;font-family:'Barlow Condensed',sans-serif;">Portadas guardadas del campeonato.</p>
+    <div class="warca-toggle">
+      <button class="warca-toggle-btn" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
+      <button class="warca-toggle-btn" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
+      <button class="warca-toggle-btn" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+      <button class="warca-toggle-btn active" data-mode="hemeroteca" onclick="switchWarca('hemeroteca')">HEMEROTECA</button>
+    </div>
+    <div class="s-header" style="margin-bottom:20px;">
+      <div class="big-title" style="font-size:clamp(32px,6vw,56px);">HEMEROTECA</div>
+      <div class="dot-row">+ + + + + + + + + + + + +</div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;font-family:'Barlow Condensed',sans-serif;">Portadas publicadas a lo largo del campeonato.</p>
     <div id="hemeroteca-grid"></div>
   </div>
-
 </div>
 
 <div class="view" id="view-standings">
@@ -517,6 +527,26 @@
   </div>
 </div>
 
+<!-- ══ EDITOR DE PORTADA (admin) ══ -->
+<div class="view" id="view-portadaeditor">
+  <div class="container pe-container">
+    <div class="admin-title">Editor de portada</div>
+    <div class="pe-toolbar">
+      <button class="btn btn-red" onclick="peSaveLocal()">💾 Guardar (local)</button>
+      <button class="btn btn-dark" onclick="peExportJSON()">⬇ Exportar JSON</button>
+      <button class="btn btn-dark" onclick="document.getElementById('portada-import-input').click()">⬆ Importar JSON</button>
+      <button class="btn btn-dark" onclick="resetPortadaToRemote()">↺ Servidor</button>
+      <button class="btn btn-gold" onclick="peSaveToHemeroteca()">📰 Guardar en Hemeroteca</button>
+      <button class="btn btn-dark" onclick="exportHemerotecaJSON()">⬇ Exportar Hemeroteca</button>
+    </div>
+    <div class="pe-note" style="margin-bottom:12px;">«Guardar (local)» aplica la portada solo en este navegador. Para publicarla para todos: «Exportar JSON» y sube el archivo como <code>data/portada.json</code> al repo.</div>
+    <div class="pe-layout">
+      <div class="pe-controls" id="pe-controls"></div>
+      <div class="pe-preview-wrap"><div class="pe-preview" id="pe-preview"></div></div>
+    </div>
+  </div>
+</div>
+
 <div class="view" id="view-settings">
   <div class="container">
     <div class="admin-title">Configuración</div>
@@ -537,59 +567,6 @@
       <div class="sc-title">Campeonato</div>
       <div class="form-group" style="margin-bottom:10px;"><label>Título del campeonato</label><input type="text" id="champ-title-input"></div>
       <button class="btn btn-red" onclick="saveSettings()">💾 Guardar</button>
-    </div>
-    <div class="section-card">
-      <div class="sc-title">Portada — Recordatorio próximo GP</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Color nombre del país</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="color" id="cfg-nextgp-name-color" style="width:44px;height:36px;padding:2px;cursor:pointer;">
-            <input type="text" id="cfg-nextgp-name-color-hex" placeholder="#D80621" style="flex:1;">
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px;">Vacío = color de la bandera del país</div>
-        </div>
-        <div class="form-group">
-          <label>Color ronda / fecha / días</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="color" id="cfg-nextgp-info-color" style="width:44px;height:36px;padding:2px;cursor:pointer;">
-            <input type="text" id="cfg-nextgp-info-color-hex" placeholder="#1a1a3e" style="flex:1;">
-          </div>
-        </div>
-      </div>
-      <div class="form-row" style="margin-top:10px;">
-        <div class="form-group">
-          <label>Tipografía — nombre del país</label>
-          <select id="cfg-nextgp-name-font">
-            <option value="'Russo One',sans-serif">Russo One (predeterminada)</option>
-            <option value="'Barlow Condensed',sans-serif">Barlow Condensed</option>
-            <option value="'Arial',sans-serif">Arial</option>
-            <option value="'Georgia',serif">Georgia</option>
-            <option value="'Courier New',monospace">Courier New</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Tipografía — ronda / fecha / días</label>
-          <select id="cfg-nextgp-info-font">
-            <option value="'Barlow Condensed',sans-serif">Barlow Condensed (predeterminada)</option>
-            <option value="'Russo One',sans-serif">Russo One</option>
-            <option value="'Arial',sans-serif">Arial</option>
-            <option value="'Georgia',serif">Georgia</option>
-            <option value="'Courier New',monospace">Courier New</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row" style="margin-top:10px;">
-        <div class="form-group">
-          <label>Tamaño nombre del país (px)</label>
-          <input type="number" id="cfg-nextgp-name-size" min="6" max="32" placeholder="13">
-        </div>
-        <div class="form-group">
-          <label>Tamaño ronda / fecha / días (px)</label>
-          <input type="number" id="cfg-nextgp-info-size" min="6" max="24" placeholder="9">
-        </div>
-      </div>
-      <button class="btn btn-red" style="margin-top:12px;" onclick="saveNextGpTypo()">💾 Guardar tipografía y colores</button>
     </div>
     <div class="section-card">
       <div class="sc-title">Sistema de puntos (posición → puntos de carrera)</div>
@@ -731,6 +708,7 @@
       <button class="warca-toggle-btn active" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
       <button class="warca-toggle-btn" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
       <button class="warca-toggle-btn" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+      <button class="warca-toggle-btn" data-mode="hemeroteca" onclick="switchWarca('hemeroteca')">HEMEROTECA</button>
     </div>
     <div class="s-header" style="margin-bottom:20px;">
       <div class="big-title" style="font-size:clamp(32px,6vw,56px);">NOTICIAS</div>
@@ -748,6 +726,7 @@
     <button class="warca-toggle-btn" data-mode="noticias" onclick="switchWarca('noticias')">NOTICIAS</button>
     <button class="warca-toggle-btn" data-mode="videos" onclick="switchWarca('videos')">WTV</button>
     <button class="warca-toggle-btn active" data-mode="bets" onclick="switchWarca('bets')">WET365</button>
+      <button class="warca-toggle-btn" data-mode="hemeroteca" onclick="switchWarca('hemeroteca')">HEMEROTECA</button>
   </div>
   <div class="wet365-shell">
     <header class="wet365-hero">
@@ -821,6 +800,7 @@
   </div>
 </div>
 
+<div id="notif" class="notif"></div>
 <script src="js/app.js"></script>
 
 

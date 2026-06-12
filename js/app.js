@@ -34,11 +34,8 @@ const AUTH_PIN = '3456';
 let _saveTimer = null;
 
 // ── Cover slideshow ─────────────────────────────────────────────────
-let _slideIndex = 0;
-let _slideTimer = null;
 
 // ── Cover wave animations ───────────────────────────────────────────
-let _waveAnimIds = {};
 
 // ── Standings: season summary + evolution chart ─────────────────────
 let _evoChart = null;
@@ -292,7 +289,6 @@ const RUNOFF_TYPES       = ['Muros', 'Grava', 'Césped', 'Asfalto'];
 const WEATHER_TYPES      = ['Seco', 'Mixto', 'Lluvia'];
 
 
-
 // ── Re-render bookkeeping (Step 4B) ─────────────────────────────────
 let _dataVersion = 0;
 const _renderState = {};
@@ -396,15 +392,6 @@ function loadState() {
   }
   } catch(e) { console.error('loadState error:', e); }
 }
-
-function resetAll() {
-  if (!confirm('¿Borrar TODO?')) return;
-  localStorage.removeItem('leala_v2');
-  localStorage.removeItem('leala_v2_img');
-  S = { championshipTitle:'LEALA F1 WORLD CHAMPIONSHIP 2026', drivers:[], races:[], pointsSystem:{}, driverProfiles:{}, logos:{} };
-  loadDefaults(); render(); showNotif('Reseteado');
-}
-
 function exportData() {
   const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='leala_v2.json'; a.click();
@@ -473,7 +460,6 @@ function importData(evt) {
       if(!S.drivers) S.drivers = [];
       saveState();
       render();
-      initCover();
       renderFooterLogos();
       updateNavAccent();
       showNotif('✅ Datos importados: ' + (S.races?.length||0) + ' carreras, ' + (S.penalties?.length||0) + ' sanciones');
@@ -643,7 +629,6 @@ function importImagesMulti(evt) {
       if (done === files.length) {
         saveState(true);
         render();
-        initCover();
         renderFooterLogos();
         if (ignored.length) {
           showNotif('Imágenes importadas: '+(files.length-ignored.length)+' (ignoradas: '+ignored.length+')');
@@ -921,35 +906,6 @@ function streakScore(driverId) {
   if(slope>0 && wAvg>=(maxPts*0.22) && last3Scored) return wAvg * slope;
   return 0;
 }
-
-function isOnStreak(driverId) {
-
-  const raceResults = S.races
-    .map(r => r.results?.[driverId] !== undefined
-        ? (r.results[driverId] > 0
-            ? (S.pointsSystem[r.results[driverId]]||0)+(r.fastestLap===driverId?1:0)
-            : 0)
-        : null)
-    .filter(v => v !== null);
-  if (raceResults.length < 3) return false;
-  const recent = raceResults.slice(-Math.min(3, raceResults.length));
-  const n = recent.length;
-  // Weighted average (recent races count more)
-  let wSum=0, wTot=0;
-  recent.forEach((v,i)=>{ const w=i+1; wSum+=v*w; wTot+=w; });
-  const wAvg = wSum/wTot;
-  // Linear regression slope
-  const xMean=(n-1)/2, yMean=wSum/wTot;
-  let num=0,den=0;
-  recent.forEach((v,i)=>{ num+=(i-xMean)*(v-yMean); den+=(i-xMean)**2; });
-  const slope = den?num/den:0;
-  // Last 3 must all have scored
-  const last3 = raceResults.slice(-3);
-  const last3Scored = last3.every(v=>v>0);
-  const maxPts = Math.max(1,...Object.values(S.pointsSystem||{}));
-  return slope>0 && wAvg>=(maxPts*0.22) && last3Scored;
-}
-
 function checkRecords(race) {
   const messages = [];
   const standings = computeStandings();
@@ -1093,14 +1049,6 @@ function getVidEmbed(v) {
 function getDefaultSprintPoints() {
   return {1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1};
 }
-
-function getCircuitBg(code) {
-  const colors = FLAG_GRADIENTS[code?.toUpperCase()];
-  if(!colors||colors.length<2) return 'var(--gray)';
-  if(colors.length===2) return `linear-gradient(135deg, ${colors[0]}22 0%, ${colors[1]}22 100%)`;
-  return `linear-gradient(135deg, ${colors[0]}22 0%, ${colors[1]}18 50%, ${colors[2]}22 100%)`;
-}
-
 function getCircuitHistory(race) {
   const code = (race.countryCode||race.flag||'').toUpperCase();
   const nameMap = {'AUSTRALIA':'AU','CHINA':'CN','JAPÓN':'JP','JAPON':'JP',
@@ -2132,7 +2080,6 @@ function computeAllOdds() {
 }
 
 
-
 // nextGP — devuelve el próximo GP del calendario que aún NO se ha disputado.
 // MATCH POR ROUND (no por nombre): cada race tiene .round, cada gp del calendario
 // tiene .round; un GP está disputado si su round aparece en S.races.
@@ -2149,7 +2096,6 @@ function nextGP() {
     return rnd && !disputedRounds.has(rnd);
   }) || null;
 }
-
 
 
 function getAllFonts() {
@@ -2222,7 +2168,6 @@ function _memoRender(name, ephemeralSig) {
   _renderState[name] = key;
   return true;
 }
-
 
 
 function renderStandings() {
@@ -2801,32 +2746,6 @@ const FLAG_GRADIENTS = {
   'CA': ['#FF0000','#FFFFFF'],
   'MC': ['#CE1126','#FFFFFF'],
 }
-
-function toggleWarcaMenu(){
-  const dd=document.getElementById('warca-dropdown');
-  const btn=document.getElementById('nav-warca-btn');
-  if(!dd||!btn) return;
-  if(dd.style.display==='block'){
-    dd.style.display='none';
-    return;
-  }
-  const r=btn.getBoundingClientRect();
-  dd.style.position='fixed';
-  dd.style.left=Math.max(8,r.left)+'px';
-  dd.style.top=(r.bottom+6)+'px';
-  dd.style.bottom='auto';
-  dd.style.zIndex='99999';
-  dd.style.display='block';
-}
-function warcaGo(view){
-  const dd=document.getElementById('warca-dropdown');
-  if(dd) dd.style.display='none';
-  if(typeof showView==='function'){
-    const btn=document.getElementById('nav-warca-btn');
-    showView(view, btn);
-  }
-}
-
 function showCircuitsList() {
   document.getElementById('circuits-list-view').style.display='block';
   document.getElementById('circuits-detail-view').style.display='none';
@@ -3407,11 +3326,6 @@ function renderTimeTrialTable() {
 }
 
 
-
-
-
-
-
 function renderVideos() {
   try {
   if (!_memoRender('renderVideos', '')) return;
@@ -3483,304 +3397,40 @@ function renderHemeroteca() {
   if(!grid) return;
   const entries = S.hemeroteca||[];
   if(!entries.length) {
-    grid.innerHTML='<div class="hem-empty">No hay portadas guardadas todavía.<br>Usa el botón "Guardar en Hemeroteca" desde la Portada.</div>';
+    grid.innerHTML='<div class="hem-empty">No hay portadas guardadas todavía.<br>Usa el botón "Guardar en Hemeroteca" desde el editor de portadas (admin).</div>';
     return;
   }
-  grid.innerHTML='<div class="hem-grid">'+entries.map(e=>`
+  grid.innerHTML='<div class="hem-grid">'+entries.map(e=>{
+    const label = (e.gp || e.title || '—').replace('GRAN PREMIO DE ','').replace('GRAN PREMIO DEL ','');
+    return `
     <div class="hem-card">
-      <img src="${e.img}" alt="${e.title}" onclick="event.stopPropagation();openHemLightbox('${e.img}')" style="cursor:zoom-in;">
+      <img src="${e.img}" alt="${e.title||''}" onclick="event.stopPropagation();openHemLightbox('${e.img}')" style="cursor:zoom-in;">
       <div class="hem-card-info">
-        <div class="hem-card-gp">${e.gp.replace('GRAN PREMIO DE ','').replace('GRAN PREMIO DEL ','')}</div>
-        <div class="hem-card-date">${e.date}</div>
+        <div class="hem-card-gp">${label}</div>
+        <div class="hem-card-date">${e.date||''}</div>
       </div>
-      <button class="hem-card-del" onclick="deleteHemerotecaEntry('${e.id}')">🗑 Eliminar</button>
-    </div>`).join('')+'</div>';
+      <div class="hem-card-actions">
+        <button class="hem-card-edit" onclick="renameHemerotecaEntry('${e.id}')">✏ Renombrar</button>
+        <button class="hem-card-del" onclick="deleteHemerotecaEntry('${e.id}')">🗑 Eliminar</button>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
 
   } catch (_e) { _renderError('hemeroteca-grid', 'renderHemeroteca', _e); }
 }
 
-function initCover() {
-  try {
-  const root = document.getElementById('cover-root');
-  if(!root) return;
-  const lastRace = S.races.length ? S.races[S.races.length-1] : null;
-  const title = S.coverTitle || 'FINAL';
-  const subtitle = S.coverSubtitle || '';
-  const lastRaceW = S.races.length ? S.races[S.races.length-1] : null;
-  const winnerIdT = lastRaceW ? Object.entries(lastRaceW.results||{}).find(([,p])=>p===1)?.[0] : null;
-  const winnerT = winnerIdT ? S.drivers.find(d=>d.id===parseInt(winnerIdT)) : null;
-  const titleColor = winnerT ? getTeamAccent(winnerT.team) : '#1a1a3e';
-  const gpName = lastRace
-    ? lastRace.name.replace('GRAN PREMIO DE ','').replace('GRAN PREMIO DEL ','')
-    : 'SIN CARRERAS';
-  const gpFlag = lastRace?.countryCode
-    ? `<img src="https://flagcdn.com/w40/${lastRace.countryCode.toLowerCase()}.png" style="height:22px;border-radius:2px;vertical-align:middle;">`
-    : '';
-
-  // Race results — all drivers shown, DNS if not scored
-  let resultRows = '';
-  const gpShortName = lastRace ? lastRace.name.replace('GRAN PREMIO DE ','').replace('GRAN PREMIO DEL ','') : '';
-  const resultsHeader = `<div class="cvr-results-header">Resultados ${gpShortName}</div>`;
-  if(lastRace) {
-    // Build full grid: scored drivers sorted by position, then unscored as DNS
-    const scored = Object.entries(lastRace.results||{})
-      .map(([id,pos])=>({driver:S.drivers.find(d=>d.id===parseInt(id)),pos}))
-      .filter(x=>x.driver&&x.pos>0).sort((a,b)=>a.pos-b.pos);
-    const scoredIds = new Set(scored.map(x=>x.driver.id));
-    const dns = S.drivers.filter(d=>!scoredIds.has(d.id)).map(d=>({driver:d,pos:0}));
-    const allRows = [...scored, ...dns];
-    resultRows = resultsHeader + allRows.map(({driver,pos})=>{
-      const isFl = lastRace.fastestLap===driver.id;
-      const isPole = lastRace.pole===driver.id;
-      const pts = pos>0 ? (S.pointsSystem[pos]||0)+(isFl?1:0) : null;
-      const badges = (isPole?'<span class="cvr-pp">PP</span>':'')+(isFl?'<span class="cvr-vr">VR</span>':'');
-      const isDns = pos===0;
-      return `<div class="cvr-row${pos===1?' cvr-winner':''}${isDns?' cvr-dns':''}">
-        <span class="cvr-pos">${isDns?'—':pos}</span>
-        <span class="cvr-name">${driver.name}</span>
-        <span class="cvr-pts">${isDns?'DNS':'+'+pts}</span>
-        <span class="cvr-badges">${badges}</span>
-      </div>`;
-    }).join('');
-  } else {
-    resultRows = resultsHeader + '<div style="padding:12px 10px;font-size:11px;color:#888;font-family:Barlow Condensed,sans-serif;text-transform:uppercase;letter-spacing:0.1em;">Sin carreras registradas</div>';
-  }
-
-  function bg(key, fallbackStyle) {
-    const img = S.coverImages?.[key] || imgSrc('cover_'+key) || imgSrc('coverImg_'+key);
-    if(img) return `<img class="cvr-bg" src="${img}" alt="">`;
-    return `<div class="cvr-upload-hint"></div>`;
-  }
-  function up(key) {
-    return `<div class="cvr-upload-tap" onclick="uploadCoverImage('${key}')"></div>`;
-  }
-
-  root.innerHTML = `
-  <div class="cvr-grid">
-
-    <!-- ROW 1 LEFT: FINAL title -->
-    <div class="cvr-cell cvr-title" style="background:#e8e4dd;">
-      ${bg('title')}
-      <div class="cvr-title-text" id="cvr-title-disp" style="color:${titleColor};">
-        <span id="cvr-title-main">${title}</span>
-        ${subtitle?`<span class="cvr-subtitle" id="cvr-subtitle-disp" style="color:${titleColor};">${subtitle}</span>`:'<span class="cvr-subtitle" id="cvr-subtitle-disp" style="display:none;"></span>'}
-      </div>
-      <input id="cvr-title-inp" class="cvr-title-inp" value="${title}"
-        onblur="saveCvTitle()" onkeydown="if(event.key==='Enter')this.blur()">
-      <input id="cvr-subtitle-inp" class="cvr-subtitle-inp" value="${subtitle}"
-        placeholder="Titular..." onblur="saveCvSubtitle()" onkeydown="if(event.key==='Enter')this.blur()">
-      <button class="cvr-edit-btn" onclick="editCvTitle()" style="z-index:13;bottom:auto;top:8px;right:8px;">✏️ TÍTULO</button>
-      <button class="cvr-edit-btn" onclick="editCvSubtitle()" style="z-index:13;bottom:auto;top:36px;right:8px;font-size:9px;">✏️ TITULAR</button>
-      ${up('title')}
-    </div>
-
-    <!-- ROW 1 RIGHT: GP name + flag strip -->
-    <div class="cvr-cell cvr-gpname" style="background:#e8e4dd;">
-      ${bg('gpname')}
-      <div class="cvr-flag-strip">
-        ${(() => {
-          const calList = (S.calendario&&S.calendario.length) ? S.calendario : S.races.map(r=>({
-            name:r.name, flag:(r.countryCode||r.flag||'').toUpperCase().slice(0,2), round:r.round
-          }));
-          const disputedRounds = new Set(S.races.map(r=>Number(r.round||0)).filter(Boolean));
-          const lastRace = S.races.length ? S.races[S.races.length-1] : null;
-          const lastRound = lastRace ? Number(lastRace.round||0) : 0;
-          const lastCC = lastRace ? (lastRace.countryCode||lastRace.flag||'').toLowerCase().slice(0,2) : '';
-          const stripeColors = {
-            'us':['#B22234','#3C3B6E'],'gb':['#012169','#C8102E'],'es':['#AA151B','#F1BF00'],
-            'it':['#009246','#CE2B37'],'fr':['#002395','#ED2939'],'de':['#000000','#DD0000'],
-            'jp':['#FFFFFF','#BC002D'],'au':['#00008B','#FF0000'],'bh':['#CE1126','#FFFFFF'],
-            'sa':['#006C35','#FFFFFF'],'cn':['#DE2910','#FFDE00'],'az':['#0092BC','#E8202A'],
-            'ca':['#FF0000','#FFFFFF'],'mc':['#CE1126','#FFFFFF'],'at':['#ED2939','#FFFFFF'],
-            'hu':['#CE2939','#477050'],'be':['#000000','#FAE042'],'nl':['#AE1C28','#21468B'],
-            'sg':['#EF3340','#FFFFFF'],'mx':['#006847','#CE1126'],'br':['#009C3B','#FEDF00'],
-            'ae':['#00732F','#FF0000'],'default':['#cc1717','#1a1a3e']
-          };
-          // Row 1: ALL flags
-          const flagsRow = calList.map(gp => {
-            const cc2 = (gp.flag||'').toLowerCase().slice(0,2);
-            const flagUrl = cc2 ? `https://flagcdn.com/w40/${cc2}.png` : '';
-            if(!flagUrl) return '';
-            const rnd = Number(gp.round||0);
-            const isDisputed = rnd ? disputedRounds.has(rnd) : false;
-            const isLast = rnd ? rnd === lastRound : cc2 === lastCC;
-            const cls = isLast ? 'cvr-strip-flag current' : (isDisputed ? 'cvr-strip-flag disputed' : 'cvr-strip-flag');
-            return `<div class="cvr-flag-item"><img src="${flagUrl}" class="${cls}" title="${gp.name}"></div>`;
-          }).join('');
-          // Find next (upcoming) GP from calendario
-          const nextGp = calList.find(g => {
-            const rnd = Number(g.round||0);
-            return rnd ? !disputedRounds.has(rnd) : false;
-          });
-          let nextRow = '';
-          if (nextGp) {
-            const nextCC = (nextGp.flag||'').toLowerCase().slice(0,2);
-            const nextFlagUrl = nextCC ? `https://flagcdn.com/w40/${nextCC}.png` : '';
-            const nextName = (nextGp.name||'').replace('GRAN PREMIO DE ','').replace('GRAN PREMIO DEL ','');
-            const nextRound = nextGp.round ? `R${nextGp.round}` : '';
-            // Calculate days remaining
-            let daysStr = '';
-            if (nextGp.date) {
-              const today = new Date(); today.setHours(0,0,0,0);
-              const race = new Date(nextGp.date + 'T00:00:00');
-              const diff = Math.round((race - today) / 86400000);
-              daysStr = diff > 0 ? `QUEDAN ${diff} DÍA${diff===1?'':'S'}` : diff === 0 ? 'HOY' : 'YA DISPUTADO';
-            }
-            const dateStr = nextGp.date
-              ? new Date(nextGp.date+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
-              : '';
-            // Format date as DD/MM/YY
-            let shortDate = '';
-            if (nextGp.date) {
-              const d = new Date(nextGp.date + 'T00:00:00');
-              const dd = String(d.getDate()).padStart(2,'0');
-              const mm = String(d.getMonth()+1).padStart(2,'0');
-              const yy = String(d.getFullYear()).slice(-2);
-              shortDate = `${dd}/${mm}/${yy}`;
-            }
-            // Dominant flag color per country code for GP name text
-            const flagTextColors = {
-              'ca':'#D80621','us':'#B22234','gb':'#C8102E','es':'#AA151B',
-              'it':'#009246','fr':'#002395','de':'#DD0000','jp':'#BC002D',
-              'au':'#00008B','bh':'#CE1126','sa':'#006C35','cn':'#DE2910',
-              'az':'#0092BC','mc':'#CE1126','at':'#ED2939','hu':'#CE2939',
-              'be':'#000000','nl':'#AE1C28','sg':'#EF3340','mx':'#006847',
-              'br':'#009C3B','ae':'#00732F','default':'#1a1a3e'
-            };
-            const nameColor = flagTextColors[nextCC] || flagTextColors['default'];
-
-            nextRow = `<div style="display:flex;align-items:center;gap:0;padding:5px 0 4px;border-bottom:1px solid rgba(26,26,62,0.08);margin-bottom:8px;flex-shrink:0;">
-              <!-- Circle -->
-              ${(() => {
-                  const fcMap = {
-                    'ca':{c:['#D80621','#FFFFFF','#D80621'],d:'V'},
-                    'us':{c:['#B22234','#FFFFFF','#3C3B6E'],d:'H'},
-                    'gb':{c:['#012169','#C8102E','#FFFFFF'],d:'H'},
-                    'es':{c:['#AA151B','#F1BF00','#AA151B'],d:'H'},
-                    'it':{c:['#009246','#FFFFFF','#CE2B37'],d:'V'},
-                    'fr':{c:['#002395','#FFFFFF','#ED2939'],d:'V'},
-                    'de':{c:['#000000','#DD0000','#FFCE00'],d:'H'},
-                    'jp':{c:['#FFFFFF','#BC002D','#FFFFFF'],d:'V'},
-                    'au':{c:['#00008B','#CC0000','#FFFFFF'],d:'H'},
-                    'bh':{c:['#CE1126','#FFFFFF'],d:'V'},
-                    'sa':{c:['#006C35','#FFFFFF'],d:'H'},
-                    'cn':{c:['#DE2910','#FFDE00'],d:'H'},
-                    'az':{c:['#0092BC','#E8202A','#3D9B35'],d:'H'},
-                    'mc':{c:['#CE1126','#FFFFFF'],d:'H'},
-                    'at':{c:['#ED2939','#FFFFFF','#ED2939'],d:'H'},
-                    'hu':{c:['#CE2939','#FFFFFF','#477050'],d:'H'},
-                    'be':{c:['#000000','#FAE042','#000000'],d:'V'},
-                    'nl':{c:['#AE1C28','#FFFFFF','#21468B'],d:'H'},
-                    'sg':{c:['#EF3340','#FFFFFF'],d:'H'},
-                    'mx':{c:['#006847','#FFFFFF','#CE1126'],d:'V'},
-                    'br':{c:['#009C3B','#FEDF00','#002776'],d:'H'},
-                    'ae':{c:['#00732F','#FFFFFF','#FF0000'],d:'H'},
-                    'default':{c:['#888888','#CCCCCC'],d:'H'}
-                  };
-                  const entry = fcMap[nextCC] || fcMap['default'];
-                  const cols = entry.c; const dir = entry.d === 'V' ? 'to right' : 'to bottom';
-                  let bg;
-                  if(cols.length === 1) bg = cols[0];
-                  else if(cols.length === 2) bg = `linear-gradient(${dir}, ${cols[0]} 50%, ${cols[1]} 50%)`;
-                  else bg = `linear-gradient(${dir}, ${cols[0]} 33.3%, ${cols[1]} 33.3% 66.6%, ${cols[2]} 66.6%)`;
-                  return `<div style="width:15px;height:15px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,0.15);background:${bg};"></div>`;
-                })()}
-              <!-- Sep -->
-              <div style="width:1px;background:rgba(0,0,0,0.15);align-self:stretch;flex-shrink:0;margin:0 6px;"></div>
-              <!-- GP name -->
-              <span style="font-family:${S.config?.nextGpNameFont||"'Russo One',sans-serif"};font-size:${S.config?.nextGpNameSize||'clamp(8px,1.4vw,13px)'};color:${S.config?.nextGpNameColor||nameColor};text-transform:uppercase;letter-spacing:0.02em;line-height:15px;white-space:nowrap;">${nextName}</span>
-              <!-- Sep -->
-              <div style="width:1px;background:rgba(0,0,0,0.15);align-self:stretch;flex-shrink:0;margin:0 6px;"></div>
-              <!-- Round -->
-              <span style="font-family:${S.config?.nextGpInfoFont||"'Russo One',sans-serif"};font-size:${S.config?.nextGpInfoSize||'9px'};color:${S.config?.nextGpInfoColor||'#1a1a3e'};letter-spacing:0.02em;white-space:nowrap;">${nextRound}</span>
-              <!-- Sep -->
-              <div style="width:1px;background:rgba(0,0,0,0.15);align-self:stretch;flex-shrink:0;margin:0 6px;"></div>
-              <!-- Date -->
-              ${shortDate ? `<span style="font-family:${S.config?.nextGpInfoFont||"'Barlow Condensed',sans-serif"};font-size:${S.config?.nextGpInfoSize||'9px'};font-weight:700;color:${S.config?.nextGpInfoColor||'#1a1a3e'};letter-spacing:0.04em;white-space:nowrap;">${shortDate}</span>` : ''}
-              <!-- Sep -->
-              ${daysStr ? `<div style="width:1px;background:rgba(0,0,0,0.15);align-self:stretch;flex-shrink:0;margin:0 6px;"></div>` : ''}
-              <!-- Days -->
-              ${daysStr ? `<span style="font-family:${S.config?.nextGpInfoFont||"'Barlow Condensed',sans-serif"};font-size:${S.config?.nextGpInfoSize||'9px'};font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:${S.config?.nextGpInfoColor||'#1a1a3e'};white-space:nowrap;">${daysStr}</span>` : ''}
-            </div>`;
-          }
-
-          // Row 2: stripe + GP name for the most recent race
-          let currentRow = '';
-          if (lastRace) {
-            const lastCalGp = calList.find(g => {
-              const rnd2 = Number(g.round||0);
-              const cc2 = (g.flag||'').toLowerCase().slice(0,2);
-              return rnd2 ? rnd2 === lastRound : cc2 === lastCC;
-            }) || lastRace;
-            const lastCC2 = (lastCalGp.flag || lastCalGp.countryCode || '').toLowerCase().slice(0,2);
-            const cols = stripeColors[lastCC2] || stripeColors['default'];
-            const gpName = (lastCalGp.name || '').toUpperCase();
-            currentRow = `<div class="cvr-current-row">
-              <!-- Checkered flag stripe first, no gap -->
-              <div style="width:13px;flex-shrink:0;background:repeating-conic-gradient(#1a1a3e 0% 25%, #e8e4dd 0% 50%) 0 0 / 6px 6px;border-radius:1px;margin-right:0;"></div>
-              <!-- Bicolor stripe immediately after, no gap -->
-              <div class="cvr-flag-stripe" style="margin-left:0;">
-                <div class="cvr-flag-stripe-top" style="background:${cols[0]};"></div>
-                <div class="cvr-flag-stripe-bot" style="background:${cols[1]};"></div>
-              </div>
-              <span class="cvr-last-gp-name" style="margin-left:8px;">${gpName}</span>
-            </div>`;
-          }
-          return `<div class="cvr-flags-row">${flagsRow}</div>${currentRow}`; /* NEXT_GP_ROW: ${nextRow} */
-        })()}
-      </div>
-      ${up('gpname')}
-    </div>
-
-    <!-- ROWS 2-3 LEFT: Hero slideshow -->
-    <div class="cvr-cell cvr-hero" id="cvr-hero-cell">
-      ${['hero','hero2','hero3'].filter(k=>S.coverImages?.[k]||imgSrc('cover_'+k)).map((k,i)=>`
-        <img class="cvr-hero-slide${i===0?' cvr-slide-active':''}" src="${S.coverImages?.[k]||imgSrc('cover_'+k)}" alt="">
-      `).join('')}
-      ${!(S.coverImages?.hero||imgSrc('cover_hero'))&&!(S.coverImages?.hero2||imgSrc('cover_hero2'))&&!(S.coverImages?.hero3||imgSrc('cover_hero3')) ? `<div class="cvr-upload-hint" style="font-size:16px;flex-direction:column;gap:8px;z-index:2;">Imagen principal</div>` : ''}
-      <div class="cvr-hero-dots" id="cvr-hero-dots">
-        ${['hero','hero2','hero3'].map((k,i)=>`<span class="cvr-hero-dot${i===0?' active':''}" onclick="setCoverSlide(${i})"></span>`).join('')}
-      </div>
-      <div class="cvr-hero-upload-btns">
-        ${['hero','hero2','hero3'].map((k,i)=>`<button class="cvr-hero-add-btn" onclick="uploadCoverImage('${k}')" title="Foto ${i+1}">+${i+1}</button>`).join('')}
-      </div>
-    </div>
-
-    <!-- ROW 2 RIGHT: Animated waves -->
-    <div class="cvr-cell cvr-pat1" style="background:transparent;">
-      ${bg('pat1')}
-      ${S.coverImages?.pat1 ? '' : '<canvas id="cvr-wave1" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>'}
-      ${up('pat1')}
-    </div>
-
-    <!-- ROW 3 RIGHT: Race results -->
-    <div class="cvr-cell cvr-results" style="background:#e8e4dd;">
-      ${bg('results')}
-      <div class="cvr-result-list"><div class="cvr-result-inner">${resultRows}</div></div>
-      ${up('results')}
-    </div>
-
-    <!-- ROW 4 LEFT: Animated waves -->
-    <div class="cvr-cell cvr-pat3" style="background:transparent;">
-      ${bg('pat3')}
-      ${S.coverImages?.pat3 ? '' : '<canvas id="cvr-wave3" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>'}
-      ${up('pat3')}
-    </div>
-
-    <!-- ROW 4 RIGHT: Triple logos -->
-    <div class="cvr-cell cvr-logo" style="background:#e8e4dd;display:flex;align-items:center;justify-content:center;gap:0;overflow:hidden;">
-      ${['logo','logo2','logo3'].map(key => `
-        <div style="display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;padding:0 3px;" onclick="uploadCoverImage('${key}')">
-          ${(S.coverImages?.[key]||imgSrc('coverImg_'+key))
-            ? `<img src="${S.coverImages?.[key]||imgSrc('coverImg_'+key)}" style="max-height:32px;max-width:90px;width:auto;object-fit:contain;display:block;" alt="">`
-            : `<div></div>`}
-        </div>`).join('')}
-    </div>
-
-  </div>
-`;
-
-  } catch (_e) { _renderError('cover-root', 'initCover', _e); }
+function renameHemerotecaEntry(id){
+  const e = (S.hemeroteca||[]).find(x=>String(x.id)===String(id));
+  if(!e) return;
+  const current = e.gp || e.title || '';
+  const next = prompt('Nuevo nombre para esta portada:', current);
+  if(next===null) return;
+  const v = next.trim();
+  if(!v) return;
+  e.gp = v;
+  saveState();
+  renderHemeroteca();
+  showNotif('✅ Portada renombrada');
 }
 
 function renderRaceEntry() {
@@ -4039,125 +3689,9 @@ function renderFontGroupsEditor() {
 
   } catch (_e) { _renderError('font-groups-editor', 'renderFontGroupsEditor', _e); }
 }
-
-function populateNextGpColorInputs() {
-  const nc = S.config?.nextGpNameColor||'';
-  const ic = S.config?.nextGpInfoColor||'#1a1a3e';
-  const nEl = document.getElementById('cfg-nextgp-name-color');
-  const nHex = document.getElementById('cfg-nextgp-name-color-hex');
-  const iEl = document.getElementById('cfg-nextgp-info-color');
-  const iHex = document.getElementById('cfg-nextgp-info-color-hex');
-  if(nEl) nEl.value = nc||'#D80621'; if(nHex) nHex.value = nc;
-  if(iEl) iEl.value = ic; if(iHex) iHex.value = ic;
-  if(nEl) nEl.oninput = ()=>{ if(nHex) nHex.value = nEl.value; };
-  if(nHex) nHex.oninput = ()=>{ if(nEl && /^#[0-9a-fA-F]{6}$/.test(nHex.value)) nEl.value = nHex.value; };
-  if(iEl) iEl.oninput = ()=>{ if(iHex) iHex.value = iEl.value; };
-  if(iHex) iHex.oninput = ()=>{ if(iEl && /^#[0-9a-fA-F]{6}$/.test(iHex.value)) iEl.value = iHex.value; };
-  // Font & size fields
-  const nfEl = document.getElementById('cfg-nextgp-name-font');
-  const ifEl = document.getElementById('cfg-nextgp-info-font');
-  const nsEl = document.getElementById('cfg-nextgp-name-size');
-  const isEl = document.getElementById('cfg-nextgp-info-size');
-  if(nfEl && S.config?.nextGpNameFont) nfEl.value = S.config.nextGpNameFont;
-  if(ifEl && S.config?.nextGpInfoFont) ifEl.value = S.config.nextGpInfoFont;
-  if(nsEl) nsEl.value = S.config?.nextGpNameSize ? parseInt(S.config.nextGpNameSize) : '';
-  if(isEl) isEl.value = S.config?.nextGpInfoSize ? parseInt(S.config.nextGpInfoSize) : '';
-}
-
-
 // ════════════════════════════════════════════════════════════════════════
 // CAPA 5 · HANDLERS / ACTIONS
 // ════════════════════════════════════════════════════════════════════════
-
-function editCvTitle() {
-  const d=document.getElementById('cvr-title-disp');
-  const i=document.getElementById('cvr-title-inp');
-  if(d) d.style.display='none';
-  if(i) { i.style.display='block'; i.focus(); i.select(); }
-}
-
-function saveCvTitle() {
-  const d=document.getElementById('cvr-title-disp');
-  const i=document.getElementById('cvr-title-inp');
-  if(!i) return;
-  S.coverTitle=i.value||'FINAL';
-  saveState();
-  if(d) { d.textContent=S.coverTitle; d.style.display=''; }
-  if(i) i.style.display='none';
-}
-
-function editCvSubtitle() {
-  const d=document.getElementById('cvr-subtitle-disp');
-  const i=document.getElementById('cvr-subtitle-inp');
-  if(d) d.style.display='none';
-  if(i) { i.style.display='block'; i.focus(); i.select(); }
-}
-
-function saveCvSubtitle() {
-  const d=document.getElementById('cvr-subtitle-disp');
-  const i=document.getElementById('cvr-subtitle-inp');
-  if(!i) return;
-  S.coverSubtitle=i.value||'';
-  saveState();
-  if(d) { if(S.coverSubtitle){ d.textContent=S.coverSubtitle; d.style.display=''; d.className='cvr-subtitle'; } else { d.textContent=''; d.style.display='none'; d.className='cvr-subtitle'; } }
-  if(i) i.style.display='none';
-}
-
-function editCoverLabel() {
-  const cur = document.getElementById('cover-final-label')?.textContent || 'FINAL';
-  const val = prompt('Texto del bloque principal:', cur);
-  if(val !== null) {
-    const el = document.getElementById('cover-final-label');
-    if(el) el.textContent = val.toUpperCase();
-    S.coverLabel = val.toUpperCase(); saveState();
-  }
-}
-
-function uploadCoverBg(slot) {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*';
-  input.onchange = e => {
-    const file = e.target.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      if(!S.coverBgs) S.coverBgs = {};
-      S.coverBgs[slot] = ev.target.result;
-      saveState(); setCoverBgImg(slot, ev.target.result);
-      showNotif('✅ Imagen guardada');
-    };
-    reader.readAsDataURL(file);
-  };
-  input.click();
-}
-
-function setCoverBgImg(slot, dataUrl) {
-  const el = document.getElementById(`cover-bg-${slot}`);
-  if(!el) return;
-  el.querySelectorAll('.cover-upload-hint,.cover-abstract').forEach(x => x.style.display='none');
-  let img = el.querySelector('img');
-  if(!img) { img = document.createElement('img'); el.appendChild(img); }
-  img.src = dataUrl;
-  img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;display:block;';
-  el.classList.remove('cream');
-}
-
-function uploadCoverImage(key) {
-  const inp = document.createElement('input');
-  inp.type='file'; inp.accept='image/*';
-  inp.onchange=e=>{
-    const f=e.target.files[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload=ev=>{
-      if(!S.coverImages) S.coverImages={};
-      S.coverImages[key]=ev.target.result;
-      saveState(); initCover();
-      showNotif('✅ Imagen guardada');
-    };
-    r.readAsDataURL(f);
-  };
-  inp.click();
-}
-
 function uploadFooterLogo(idx) {
   const inp = document.createElement('input');
   inp.type='file'; inp.accept='image/*';
@@ -4175,295 +3709,50 @@ function uploadFooterLogo(idx) {
   };
   inp.click();
 }
-
-function startSlideshow() {
-  if(_slideTimer) clearInterval(_slideTimer);
-  _slideTimer = setInterval(advanceCoverSlide, 4000);
+// Captura la portada nueva (#portada) neutralizando temporalmente el
+// transform:scale del wrapper (html2canvas no renderiza bien los transforms).
+function _capturePortada(scale){
+  const target = document.getElementById('portada');
+  if(!target) return Promise.reject(new Error('Portada no visible'));
+  const scaler = target.closest('.portada-scaler');
+  const prevTransform = scaler ? scaler.style.transform : '';
+  const prevClass = scaler ? scaler.getAttribute('style') : null;
+  if(scaler){ scaler.style.transform='none'; scaler.style.marginBottom='0'; }
+  return html2canvas(target, {backgroundColor:'#111', scale: scale, useCORS:true, allowTaint:true, logging:false})
+    .finally(()=>{ if(scaler){ scaler.setAttribute('style', prevClass||''); if(prevTransform) scaler.style.transform=prevTransform; renderPortadaCover(); } });
 }
 
-function advanceCoverSlide() {
-  const slides = document.querySelectorAll('.cvr-hero-slide');
-  const dots = document.querySelectorAll('.cvr-hero-dot');
-  if(slides.length < 2) return;
-  slides[_slideIndex]?.classList.remove('cvr-slide-active');
-  dots[_slideIndex]?.classList.remove('active');
-  _slideIndex = (_slideIndex + 1) % slides.length;
-  slides[_slideIndex]?.classList.add('cvr-slide-active');
-  dots[_slideIndex]?.classList.add('active');
-}
-
-function setCoverSlide(i) {
-  const slides = document.querySelectorAll('.cvr-hero-slide');
-  const dots = document.querySelectorAll('.cvr-hero-dot');
-  slides[_slideIndex]?.classList.remove('cvr-slide-active');
-  dots[_slideIndex]?.classList.remove('active');
-  _slideIndex = i;
-  slides[_slideIndex]?.classList.add('cvr-slide-active');
-  dots[_slideIndex]?.classList.add('active');
-}
-
-function startWaveAnimations() {
-  stopWaveAnimations();
-
-  const lastRace = S.races.length ? S.races[S.races.length-1] : null;
-  const winnerId = lastRace ? Object.entries(lastRace.results||{}).find(([,p])=>p===1)?.[0] : null;
-  const winner = winnerId ? S.drivers.find(d=>d.id===parseInt(winnerId)) : null;
-  const accent = winner ? getTeamAccent(winner.team) : '#cc1717';
-  const hasPole = !!(lastRace?.pole);
-  const hasFL   = !!(lastRace?.fastestLap);
-  const poleColor = '#0099ff';
-
-  function hexToRgb(hex) {
-    hex = hex.replace('#','');
-    if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
-    return { r:parseInt(hex.slice(0,2),16), g:parseInt(hex.slice(2,4),16), b:parseInt(hex.slice(4,6),16) };
-  }
-  const ca = hexToRgb(accent);
-  const cp = hexToRgb(poleColor);
-
-  // ── WAVE ANIMATION (cvr-wave3: bottom-left) ─────────────
-  function animateWave(canvasId, phaseOffset, speedMult, rotate90) {
-    const canvas = document.getElementById(canvasId);
-    if(!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let t = phaseOffset * 100;
-
-    function resize() {
-      const dpr = window.devicePixelRatio||1;
-      canvas.width  = canvas.offsetWidth  * dpr;
-      canvas.height = canvas.offsetHeight * dpr;
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.scale(dpr,dpr);
-    }
-    resize();
-
-    function draw() {
-      const w = canvas.offsetWidth, h = canvas.offsetHeight;
-      const dpr = window.devicePixelRatio||1;
-      if(canvas.width !== Math.round(w*dpr)) resize();
-      const ww = rotate90 ? h : w, hh = rotate90 ? w : h;
-      ctx.clearRect(0,0,w,h);
-      if(rotate90) { ctx.save(); ctx.translate(w,0); ctx.rotate(Math.PI/2); }
-
-      // Gradient background: accent → pole blue (if pole) else dark accent
-      const bg = ctx.createLinearGradient(0,0,rotate90?0:ww,rotate90?ww:hh);
-      bg.addColorStop(0, `rgba(${ca.r},${ca.g},${ca.b},0.9)`);
-      if(hasPole) {
-        bg.addColorStop(1, `rgba(${cp.r},${cp.g},${cp.b},0.75)`);
-      } else {
-        bg.addColorStop(1, `rgba(${Math.round(ca.r*0.12)},${Math.round(ca.g*0.12)},${Math.round(ca.b*0.12)},1)`);
-      }
-      ctx.fillStyle = bg;
-      ctx.fillRect(0,0,ww,hh);
-
-      // Waves in team color (bright)
-      const waves = [
-        {amp:hh*0.20,freq:0.7,speed:0.0000625*speedMult,yBase:hh*0.22,width:28,alpha:0.45},
-        {amp:hh*0.28,freq:0.5,speed:0.0000375*speedMult,yBase:hh*0.42,width:42,alpha:0.55},
-        {amp:hh*0.18,freq:1.0,speed:0.000075*speedMult, yBase:hh*0.60,width:30,alpha:0.40},
-        {amp:hh*0.24,freq:0.4,speed:0.000025*speedMult, yBase:hh*0.78,width:38,alpha:0.38},
-      ];
-      waves.forEach((wave,wi)=>{
-        const pts=[];
-        for(let x=0;x<=ww;x+=3){
-          const y=wave.yBase
-            +Math.sin((x/ww)*Math.PI*2*wave.freq+t*wave.speed*300+wi*1.5)*wave.amp
-            +Math.sin((x/ww)*Math.PI*wave.freq*0.7+t*wave.speed*180+wi)*wave.amp*0.45;
-          pts.push({x,y});
-        }
-        ctx.save();
-        ctx.filter=`blur(${Math.round(wave.width*0.35)}px)`;
-        ctx.beginPath();
-        pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
-        // Wave color = team accent
-        ctx.strokeStyle=`rgba(${ca.r},${ca.g},${ca.b},${wave.alpha})`;
-        ctx.lineWidth=wave.width; ctx.lineCap='round'; ctx.lineJoin='round';
-        ctx.shadowColor=accent; ctx.shadowBlur=wave.width*0.5;
-        ctx.stroke();
-        ctx.restore();
-      });
-
-      if(rotate90) ctx.restore();
-      // Film grain (guard against zero dimensions)
-      if(w>0 && h>0) {
-        // Use offscreen canvas + globalAlpha for grain that doesn't black out
-        const nc = document.createElement('canvas');
-        nc.width=w; nc.height=h;
-        const nctx = nc.getContext('2d');
-        const noiseData=nctx.createImageData(w,h);
-        const nd=noiseData.data;
-        for(let n=0;n<nd.length;n+=4){const v=(Math.random()*255)|0;nd[n]=nd[n+1]=nd[n+2]=v;nd[n+3]=22;}
-        nctx.putImageData(noiseData,0,0);
-        ctx.globalAlpha=0.18;
-        ctx.drawImage(nc,0,0);
-        ctx.globalAlpha=1.0;
-      }
-      t++;
-      if(_waveAnimIds[canvasId]) cancelAnimationFrame(_waveAnimIds[canvasId]);
-      _waveAnimIds[canvasId] = requestAnimationFrame(draw);
-    }
-    draw();
-  }
-
-  // ── NEBULA ANIMATION (cvr-wave1: top-right) ─────────────
-  const FLAG_PAL = {
-    AU:[{r:0,g:0,b:139},{r:204,g:0,b:0},{r:255,g:255,b:255}],
-    CN:[{r:222,g:41,b:16},{r:255,g:222,b:0},{r:180,g:20,b:10}],
-    JP:[{r:188,g:0,b:45},{r:255,g:255,b:255},{r:140,g:0,b:30}],
-    BH:[{r:206,g:17,b:38},{r:255,g:255,b:255},{r:160,g:160,b:160}],
-    SA:[{r:0,g:108,b:53},{r:20,g:160,b:80},{r:180,g:220,b:180}],
-    US:[{r:178,g:34,b:52},{r:60,g:59,b:110},{r:255,g:255,b:255}],
-    GB:[{r:1,g:33,b:105},{r:200,g:16,b:46},{r:255,g:255,b:255}],
-    IT:[{r:0,g:146,b:70},{r:255,g:255,b:255},{r:206,g:43,b:55}],
-    ES:[{r:170,g:21,b:27},{r:241,g:191,b:0},{r:200,g:30,b:30}],
-    BE:[{r:20,g:20,b:20},{r:250,g:224,b:66},{r:239,g:51,b:64}],
-    NL:[{r:174,g:28,b:40},{r:255,g:255,b:255},{r:33,g:70,b:139}],
-    HU:[{r:206,g:41,b:57},{r:255,g:255,b:255},{r:71,g:112,b:80}],
-    AT:[{r:237,g:41,b:57},{r:255,g:255,b:255},{r:180,g:20,b:20}],
-    MC:[{r:206,g:17,b:38},{r:255,g:255,b:255},{r:150,g:10,b:30}],
-    AZ:[{r:0,g:146,b:188},{r:239,g:51,b:64},{r:80,g:158,b:47}],
-    CA:[{r:220,g:0,b:0},{r:255,g:255,b:255},{r:180,g:0,b:0}],
-    SG:[{r:239,g:51,b:64},{r:255,g:255,b:255},{r:180,g:30,b:50}],
-    MX:[{r:0,g:104,b:71},{r:255,g:255,b:255},{r:206,g:17,b:38}],
-    BR:[{r:0,g:156,b:59},{r:254,g:223,b:0},{r:0,g:39,b:118}],
-    AE:[{r:0,g:115,b:47},{r:255,g:255,b:255},{r:255,g:0,b:0}],
-  };
-  const gpCode = (lastRace?.countryCode||lastRace?.flag||'').toUpperCase().slice(0,2);
-  const pal = FLAG_PAL[gpCode] || [{r:ca.r,g:ca.g,b:ca.b},{r:Math.round(ca.r*0.5),g:Math.round(ca.g*0.5),b:Math.round(ca.b*0.5)},{r:255,g:255,b:255}];
-  const colors = [
-    pal[0], pal[1], pal[2]||pal[0],
-    {r:Math.round((pal[0].r+pal[1].r)/2),g:Math.round((pal[0].g+pal[1].g)/2),b:Math.round((pal[0].b+pal[1].b)/2)},
-  ];
-
-  function animateNebula(canvasId, colors) {
-    const canvas = document.getElementById(canvasId);
-    if(!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let t = 0;
-
-    function resize() {
-      const dpr = window.devicePixelRatio||1;
-      canvas.width  = canvas.offsetWidth*dpr;
-      canvas.height = canvas.offsetHeight*dpr;
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.scale(dpr,dpr);
-    }
-    resize();
-
-    // Pre-generate noise texture once per resize
-    let noiseCanvas = null;
-    function buildNoise(w,h) {
-      if(w<=0||h<=0) return;
-      noiseCanvas = document.createElement('canvas');
-      noiseCanvas.width=Math.round(w); noiseCanvas.height=Math.round(h);
-      const nc = noiseCanvas.getContext('2d');
-      const id = nc.createImageData(Math.round(w),Math.round(h));
-      const d = id.data;
-      for(let i=0;i<d.length;i+=4){
-        const v=(Math.random()*255)|0;
-        d[i]=d[i+1]=d[i+2]=v; d[i+3]=28;
-      }
-      nc.putImageData(id,0,0);
-    }
-
-    function draw() {
-      const w=canvas.offsetWidth, h=canvas.offsetHeight;
-      const dpr=window.devicePixelRatio||1;
-      if(canvas.width!==Math.round(w*dpr)){ resize(); buildNoise(w,h); return; }
-      if(!noiseCanvas) buildNoise(w,h);
-
-      ctx.clearRect(0,0,w,h);
-
-      // Animated gradient using flag colors
-      const c0=colors[0], c1=colors[1], c2=colors[2]||colors[0];
-      const cx = w*(0.3+Math.sin(t*0.003)*0.3);
-      const cy = h*(0.25+Math.cos(t*0.0025)*0.3);
-      const cx2 = w*(0.7+Math.cos(t*0.002)*0.3);
-      const cy2 = h*(0.75+Math.sin(t*0.0028)*0.3);
-
-      // Base gradient
-      const g = ctx.createLinearGradient(0,0,w,h);
-      g.addColorStop(0, `rgb(${c0.r},${c0.g},${c0.b})`);
-      g.addColorStop(0.5, `rgb(${c2.r},${c2.g},${c2.b})`);
-      g.addColorStop(1, `rgb(${c1.r},${c1.g},${c1.b})`);
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,w,h);
-
-      // Moving radial light spots
-      const spots = [
-        {x:cx, y:cy, r:Math.min(w,h)*0.55, c:c2, a:0.35},
-        {x:cx2, y:cy2, r:Math.min(w,h)*0.45, c:c0, a:0.25},
-      ];
-      spots.forEach(s=>{
-        const rg = ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r);
-        rg.addColorStop(0,`rgba(255,255,255,${s.a})`);
-        rg.addColorStop(0.4,`rgba(${s.c.r},${s.c.g},${s.c.b},0.15)`);
-        rg.addColorStop(1,`rgba(0,0,0,0)`);
-        ctx.fillStyle=rg; ctx.fillRect(0,0,w,h);
-      });
-
-      // Grain overlay
-      if(noiseCanvas) ctx.drawImage(noiseCanvas,0,0,w,h);
-
-      t++;
-      if(_waveAnimIds[canvasId]) cancelAnimationFrame(_waveAnimIds[canvasId]);
-      _waveAnimIds[canvasId] = requestAnimationFrame(draw);
-    }
-    draw();
-  }
-
-  animateNebula('cvr-wave1', colors);
-  animateWave('cvr-wave3', 0.47, 0.82, false);
-}
-
-function stopWaveAnimations() {
-  Object.values(_waveAnimIds).forEach(id => cancelAnimationFrame(id));
-  _waveAnimIds = {};
+function _portadaTitle(){
+  const I = (window.PORTADA && window.PORTADA.inputs) || {};
+  return [I.t1, I.t2].filter(Boolean).join(' ').trim() || 'PORTADA';
 }
 
 function saveCoverToHemeroteca() {
-  const target = document.getElementById('cover-root');
-  if(!target) return;
   showNotif('📸 Guardando portada...');
-  const bar = target.querySelector('.cvr-action-bar');
-  if(bar) bar.style.display='none';
-  html2canvas(target, {backgroundColor:'#111',scale:1.5,useCORS:true,allowTaint:true,logging:false})
-    .then(canvas=>{
-      if(!S.hemeroteca) S.hemeroteca=[];
-      const lastRace = S.races.length ? S.races[S.races.length-1] : null;
-      const entry = {
-        id: Date.now().toString(),
-        title: S.coverTitle || 'FINAL',
-        gp: lastRace ? lastRace.name : '—',
-        date: new Date().toLocaleDateString('es-ES'),
-        img: canvas.toDataURL('image/jpeg',0.85)
-      };
-      S.hemeroteca.unshift(entry);
-      saveState();
-      if(bar) bar.style.display='';
-      showNotif('✅ Guardada en Hemeroteca');
-    }).catch(()=>{ if(bar) bar.style.display=''; showNotif('⚠ Error'); });
+  _capturePortada(1.5).then(canvas=>{
+    if(!S.hemeroteca) S.hemeroteca=[];
+    const lastRace = S.races.length ? S.races[S.races.length-1] : null;
+    S.hemeroteca.unshift({
+      id: Date.now().toString(),
+      title: _portadaTitle(),
+      gp: lastRace ? lastRace.name : '—',
+      date: new Date().toLocaleDateString('es-ES'),
+      img: canvas.toDataURL('image/jpeg',0.85)
+    });
+    saveState();
+    showNotif('✅ Guardada en Hemeroteca');
+  }).catch(()=>showNotif('⚠ Error: abre primero la pestaña Portada'));
 }
 
 function exportCoverJPG() {
-  const target = document.getElementById('cover-root');
-  if(!target) return;
   showNotif('📸 Generando imagen...');
-  const bar = target.querySelector('.cvr-action-bar');
-  if(bar) bar.style.display='none';
-  const lastSaved = document.getElementById('last-saved-indicator');
-  if(lastSaved) lastSaved.style.display='none';
-  html2canvas(target, {backgroundColor:'#111',scale:2,useCORS:true,allowTaint:true,logging:false})
-    .then(canvas=>{
-      const gp = (S.races.length ? S.races[S.races.length-1].name : 'PORTADA').replace(/\s+/g,'_');
-      const link=document.createElement('a');
-      link.download=`LEALA_${gp}.jpg`;
-      link.href=canvas.toDataURL('image/jpeg',0.93);
-      link.click();
-      if(bar) bar.style.display='';
-      if(lastSaved) lastSaved.style.display='';
-      showNotif('✅ Portada exportada');
-    }).catch(()=>{ if(bar) bar.style.display=''; if(lastSaved) lastSaved.style.display=''; showNotif('⚠ Error al exportar'); });
+  _capturePortada(2).then(canvas=>{
+    const link=document.createElement('a');
+    link.download=`WARCA_${_portadaTitle().replace(/\s+/g,'_')}.jpg`;
+    link.href=canvas.toDataURL('image/jpeg',0.93);
+    link.click();
+    showNotif('✅ Portada exportada');
+  }).catch(()=>showNotif('⚠ Error: abre primero la pestaña Portada'));
 }
 
 function toggleSeasonSummary() {
@@ -4499,49 +3788,6 @@ function setDriverEvoMode(driverId, mode) {
   if (btnPos) btnPos.classList.toggle('active', mode === 'pos');
   renderDriverEvolutionChart(driverId);
 }
-
-function _unusedToggleSummary() {
-  _summaryOpen = !_summaryOpen;
-  const container = document.getElementById('season-summary-container');
-  const icon = document.getElementById('summary-toggle-icon');
-  if(container) container.style.display = _summaryOpen ? 'block' : 'none';
-  if(icon) { icon.textContent = _summaryOpen ? '▲' : '▼'; icon.classList.toggle('open', _summaryOpen); }
-  if(_summaryOpen) renderSeasonSummary();
-}
-
-function exportStandingsJPG() {
-  const target = document.querySelector('.container');
-  if (!target) { showNotif('⚠ No se encontró el contenido'); return; }
-  showNotif('📸 Generando imagen...');
-  const btn = document.querySelector('[onclick="exportStandingsJPG()"]');
-  const nav = document.querySelector('.app-nav');
-  const lastSaved = document.getElementById('last-saved-indicator');
-  if (btn) btn.style.display = 'none';
-  if (lastSaved) lastSaved.style.display = 'none';
-  html2canvas(target, {
-  backgroundColor: '#050508',
-  scale: 2,
-  useCORS: true,
-  allowTaint: true,
-  ignoreElements: el => el.id === 'last-saved-indicator',
-  logging: false,
-  }).then(canvas => {
-  const link = document.createElement('a');
-  const last = S.races[S.races.length - 1];
-  const gpName = last ? last.name.replace(/\s+/g,'_').slice(0,30) : 'CLASIFICACION';
-  link.download = `LEALA_${gpName}.jpg`;
-  link.href = canvas.toDataURL('image/jpeg', 0.95);
-  link.click();
-  if (btn) btn.style.display = '';
-  if (lastSaved) lastSaved.style.display = '';
-  showNotif('✅ Imagen descargada');
-  }).catch(e => {
-  if (btn) btn.style.display = '';
-  if (lastSaved) lastSaved.style.display = '';
-  showNotif('⚠ Error al generar imagen');
-  });
-}
-
 function openProfile(driverId) {
   const driver=S.drivers.find(d=>d.id===driverId);
   if(!driver)return;
@@ -4694,28 +3940,6 @@ function openProfile(driverId) {
   `;
   requestAnimationFrame(()=>renderDriverEvolutionChart(driverId));
 }
-
-function editBio(driverId) {
-  const profile = S.driverProfiles[driverId]||{bio:'',photoDataUrl:''};
-  const ta = document.createElement('textarea');
-  ta.style.cssText='width:100%;min-height:120px;margin-bottom:8px;';
-  ta.value=profile.bio;
-  const saveBtn=document.createElement('button');
-  saveBtn.className='btn btn-red btn-sm';
-  saveBtn.textContent='💾 Guardar descripción';
-  saveBtn.onclick=()=>{
-  if(!S.driverProfiles[driverId])S.driverProfiles[driverId]={bio:'',photoDataUrl:''};
-  S.driverProfiles[driverId].bio=ta.value;
-  saveState();
-  openProfile(driverId);
-  };
-  const el=document.getElementById(`bio-display-${driverId}`);
-  el.innerHTML='';
-  el.appendChild(ta);
-  el.appendChild(saveBtn);
-  el.onclick=null;
-}
-
 function toggleProfileDesc(driverId) {
   const textEl=document.getElementById(`prof-desc-text-${driverId}`);
   const taEl=document.getElementById(`prof-desc-ta-${driverId}`);
@@ -4796,42 +4020,6 @@ function uploadFlag(country, code) {
   };
   input.click();
 }
-
-function uploadTrophy(driverId, slot) {
-  const input=document.createElement('input');
-  input.type='file';input.accept='image/*';
-  input.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      if(!S.driverProfiles[driverId])S.driverProfiles[driverId]={};
-      if(!S.driverProfiles[driverId].trophies)S.driverProfiles[driverId].trophies={};
-      S.driverProfiles[driverId].trophies[slot]=ev.target.result;
-      saveState();openProfile(driverId);showNotif('🏆 Trofeo guardado');
-    };
-    reader.readAsDataURL(file);
-  };
-  input.click();
-}
-
-function exportProfileJPG(driverId) {
-  const target = document.getElementById('view-profile');
-  if (!target) return;
-  showNotif('📸 Generando imagen...');
-  const lastSaved = document.getElementById('last-saved-indicator');
-  if (lastSaved) lastSaved.style.display = 'none';
-  html2canvas(target, { backgroundColor:'#050508', scale:2, useCORS:true, allowTaint:true, logging:false })
-    .then(canvas => {
-      const driver = S.drivers.find(d => d.id === driverId);
-      const link = document.createElement('a');
-      link.download = `LEALA_PILOTO_${driver?.name||'PILOTO'}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.92);
-      link.click();
-      if (lastSaved) lastSaved.style.display = '';
-      showNotif('✅ Imagen descargada');
-    }).catch(() => { if (lastSaved) lastSaved.style.display = ''; showNotif('⚠ Error'); });
-}
-
 function openTeam(teamKey) {
   // McLaren (bright orange) needs dark text; all others use white
   const darkTextTeams = ['team-mclaren','mclaren'];
@@ -5433,59 +4621,6 @@ function savePressEdit(raceId) {
   saveBtn.style.display='none'; editBtn.textContent='✏️ Nota de prensa';
   showNotif('✅ Nota de prensa guardada');
 }
-
-function exportCircuitJPG(raceId) {
-  const target = document.getElementById('circuit-detail-content');
-  if (!target) return;
-  showNotif('📸 Generando imagen...');
-  const lastSaved = document.getElementById('last-saved-indicator');
-  if (lastSaved) lastSaved.style.display = 'none';
-  html2canvas(target, { backgroundColor:'#050508', scale:2, useCORS:true, allowTaint:true, logging:false })
-    .then(canvas => {
-      const race = S.races.find(r => r.id === raceId);
-      const link = document.createElement('a');
-      link.download = `LEALA_CIRCUITO_${race?.name?.replace(/\s+/g,'_')||'GP'}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.92);
-      link.click();
-      if (lastSaved) lastSaved.style.display = '';
-      showNotif('✅ Imagen descargada');
-    }).catch(() => { if (lastSaved) lastSaved.style.display = ''; showNotif('⚠ Error'); });
-}
-
-function exportDuelJPG() {
-  const target = document.getElementById('duel-result');
-  if (!target || !target.children.length) { showNotif('⚠ No hay duelo para exportar'); return; }
-  showNotif('📸 Generando imagen...');
-  const exportBtn = document.getElementById('duel-export-btn-container');
-  if (exportBtn) exportBtn.style.display = 'none';
-  const lastSaved = document.getElementById('last-saved-indicator');
-  if (lastSaved) lastSaved.style.display = 'none';
-  html2canvas(target, {
-    backgroundColor: '#050508',
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-  }).then(canvas => {
-    const idA = parseInt(document.getElementById('duel-select-a').value);
-    const idB = parseInt(document.getElementById('duel-select-b').value);
-    const dA = S.drivers.find(d => d.id === idA);
-    const dB = S.drivers.find(d => d.id === idB);
-    const name = (dA && dB) ? `DUELO_${dA.name}_vs_${dB.name}` : 'DUELO';
-    const link = document.createElement('a');
-    link.download = `${name}.jpg`;
-    link.href = canvas.toDataURL('image/jpeg', 0.95);
-    link.click();
-    if (exportBtn) exportBtn.style.display = '';
-    if (lastSaved) lastSaved.style.display = '';
-    showNotif('✅ Imagen descargada');
-  }).catch(e => {
-    if (exportBtn) exportBtn.style.display = '';
-    if (lastSaved) lastSaved.style.display = '';
-    showNotif('⚠ Error al generar imagen');
-  });
-}
-
 function submitPenalty(){
   const driverId=parseInt(document.getElementById('pen-driver-select').value);
   const raceId=parseInt(document.getElementById('pen-race-select').value);
@@ -5927,7 +5062,6 @@ function toggleOddBreakdown(betType, key, rowEl) {
 }
 
 
-
 // ─────────────────────────────────────────────────────────────────────
 // saveNextGpData — guarda el tipo de qualy y la probabilidad de lluvia
 // manual del próximo GP (sección admin de la ficha del circuito).
@@ -5956,13 +5090,6 @@ function saveNextGpData(round) {
   openCircuit('next-' + round);         // re-render de la ficha
   showNotif('✅ Datos del próximo GP actualizados');
 }
-
-
-
-
-
-
-
 
 
 function deleteGP(idx) {
@@ -6266,28 +5393,6 @@ function saveSettings() {
   S.championshipTitle=document.getElementById('champ-title-input').value;
   saveState(); renderStandingsIfActive(); showNotif('✅ Configuración guardada');
 }
-
-function saveNextGpColors() { saveNextGpTypo(); }
-
-function saveNextGpTypo() {
-  if(!S.config) S.config = {};
-  const nameHex  = document.getElementById('cfg-nextgp-name-color-hex').value.trim();
-  const infoHex  = document.getElementById('cfg-nextgp-info-color-hex').value.trim();
-  const nameFont = document.getElementById('cfg-nextgp-name-font').value;
-  const infoFont = document.getElementById('cfg-nextgp-info-font').value;
-  const nameSize = document.getElementById('cfg-nextgp-name-size').value.trim();
-  const infoSize = document.getElementById('cfg-nextgp-info-size').value.trim();
-  S.config.nextGpNameColor = nameHex || null;
-  S.config.nextGpInfoColor = infoHex || '#1a1a3e';
-  S.config.nextGpNameFont  = nameFont || null;
-  S.config.nextGpInfoFont  = infoFont || null;
-  S.config.nextGpNameSize  = nameSize ? nameSize+'px' : null;
-  S.config.nextGpInfoSize  = infoSize ? infoSize+'px' : null;
-  saveState();
-  if(document.getElementById('view-cover')?.classList.contains('active')) renderCvr();
-  showNotif('✅ Tipografía del próximo GP guardada');
-}
-
 function editChampTitle() {
   const current=S.championshipTitle||'';
   const val=prompt('Editar título del campeonato:', current);
@@ -6346,6 +5451,9 @@ function toggleTheme() {
   saveState();
   const btn = document.getElementById('theme-toggle-btn');
   if(btn) btn.textContent = isLight ? '🌑' : '🌙';
+  // La portada v2 liga su fondo al tema: refrescar si está visible
+  if(document.getElementById('view-cover')?.classList.contains('active')) renderPortadaCover();
+  if(document.getElementById('view-portadaeditor')?.classList.contains('active')) pePreview();
 }
 
 function applyTheme() {
@@ -6461,7 +5569,7 @@ function removeCustomFont(name) {
 }
 
 function showView(name, btn) {
-  const adminViews = ['race','penalties','drivers-admin','settings'];  // penalties-public is public
+  const adminViews = ['race','penalties','drivers-admin','settings','portadaeditor'];  // penalties-public is public
   if (adminViews.includes(name) && S.pinEnabled) {
     requirePin(() => _doShowView(name, btn));
     return;
@@ -6473,7 +5581,7 @@ function _doShowView(name, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + name)?.classList.add('active');
-  const adminViews2 = ['race','penalties','drivers-admin','settings'];
+  const adminViews2 = ['race','penalties','drivers-admin','settings','portadaeditor'];
   if (adminViews2.includes(name)) {
     const tog = document.getElementById('nav-admin-toggle');
     if (tog) tog.classList.add('admin-active');
@@ -6483,12 +5591,13 @@ function _doShowView(name, btn) {
     const champBtn = document.getElementById('nav-championship-btn');
     if (champBtn) champBtn.classList.add('active');
   }
-  // WARCA: noticias + videos + bets comparten botón nav
-  if (name === 'noticias' || name === 'videos' || name === 'bets') {
+  // WARCA: noticias + videos + bets + hemeroteca comparten botón nav
+  if (name === 'noticias' || name === 'videos' || name === 'bets' || name === 'hemeroteca') {
     const warcaBtn = document.getElementById('nav-warca-btn');
     if (warcaBtn) warcaBtn.classList.add('active');
   }
   if (name === 'cover')         { renderPortadaCover(); }
+  if (name === 'portadaeditor') { renderPortadaEditor(); }
   if (name === 'standings')     renderStandings();
   if (name === 'race') {
     const editActive = document.getElementById('edit-race-id')?.value;
@@ -6734,11 +5843,9 @@ function init() {
   updateNavAccent();
   // Re-inject custom fonts
   Object.entries(S.customFonts||{}).forEach(([n,d])=>injectFontFace(n,d));
-  // Portada: ya no usamos initCover() (la vieja). Si window.PORTADA está
-  // listo, renderiza ya; si no, bootApp lo hará tras autoLoadPortada().
+  // Portada: se pinta desde window.PORTADA (cargado en bootApp).
   try { renderPortadaCover(); } catch(e) { console.warn('renderPortadaCover en init:', e); }
   render();
-  requestAnimationFrame(startWaveAnimations);
   try { renderFooterLogos(); } catch(e) { console.warn('renderFooterLogos en init falló:', e); }
   initAuth();
   // Segunda llamada por seguridad (timing race conditions)
@@ -6819,23 +5926,113 @@ function _pHexRgb(hex){
   return `${(n>>16)&255},${(n>>8)&255},${n&255}`;
 }
 
-function renderPortadaCover(){
-  const portada = document.getElementById('portada-cover');
-  if(!portada) return;
+// ════════════════════════════════════════════════════════════════════════
+// PORTADA WARCA v2 — builder + capa dinámica + editor admin
+// ════════════════════════════════════════════════════════════════════════
+// Flujo: window.PORTADA (JSON manual) → applyPortadaDynamics() (overrides
+// automáticos según flags PORTADA.dynamic) → buildPortadaHTML() (HTML puro)
+// → renderPortadaCover() / pePreview() lo inyectan donde toque.
+// Automatismos (todos activos por defecto; desactivables vía dynamic:{...:false}):
+//   results → recuadro de resultados = último GP disputado (S.races)
+//   nextGp  → banner = próximo GP según S.calendario, en marquesina
+//   theme   → fondo de la portada ligado al modo día/noche (S.lightMode)
+//   marquee → el banner desplaza su texto de derecha a izquierda en bucle
 
-  // Caja interna donde realmente se pinta (id='portada' para compat con estilos).
-  // La envolvemos en .portada-scaler para poder aplicar transform:scale sin
-  // romper el diseño px-fijo del generador.
-  portada.innerHTML = '<div class="portada-scaler"><div id="portada"></div></div>';
-  const scaler = portada.querySelector('.portada-scaler');
-  const target = portada.querySelector('#portada');
+const PORTADA_FONTS = ['Anton','Bebas Neue','Racing Sans One','Oswald','Teko','Russo One','Barlow Condensed','Barlow'];
 
-  const P = window.PORTADA;
-  if(!P){
-    target.innerHTML = '<div style="padding:60px 20px;text-align:center;color:#888;font-family:\'Barlow Condensed\',sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase;">Portada no cargada<br><span style="font-size:11px;opacity:.6;">Importa una portada desde Configuración (admin)</span></div>';
-    return;
+function _portadaDefaults(){
+  return {
+    _version:'v2',
+    inputs:{
+      'page-bg':'#f0ede8','hdr-bg':'#FF8000','hdr-opacity':'100','hdr-h':'28','meta-color':'#fff',
+      'hdr-num':'Nº1','hdr-fecha':'','hdr-price':'','hdr-tag':'LEALA F1 WORLD CHAMPIONSHIP MAGAZINE',
+      'logo-w':'80','logo-top':'16','logo-color':'#fff','tag-sz':'10','tag-color':'#fff','tag-gap':'4',
+      'bg-h':'340','grad-op':'72','grad-color':'#000','grad-dir':'to top',
+      'lbl-show':'0','lbl-pre':'','lbl-evt':'','lbl-pill-bg':'#E10600','lbl-pill-fg':'#fff','lbl-evt-fg':'#111','lbl-bg':'#FF8000','lbl-sz':'11','lbl-bottom':'140',
+      't1':'TITULAR','t1-sz':'72','t1-color':'#fff','t2':'SUBTÍTULO','t2-sz':'30','t2-color':'#FF8000','t-gap':'0',
+      't3':'','t3-sz':'13','t3-color':'#fff','t3-style':'italic',
+      'ticker-txt':'','ticker-color':'#999',
+      'badge-show':'0','badge-txt':'','badge-bg':'#FF8000','badge-fg':'#fff',
+      'banner-show':'1','banner-txt':'PRÓXIMO GP','banner-bg':'#fff','banner-fg':'#111','banner-my':'6',
+      'res-title':'RESULTADOS','res-list':'','res-bg':'#E10600','res-fg':'#fff','res-img-h':'80','res-icon-show':'1',
+      'card-radius':'14','card-gap':'6','grid-pad':'14','grid-mt':'6','grid-mb':'14','img-radius':'14','img-mx':'14'
+    },
+    state:{ logoSrc:null, bgSrc:null, badgeSrc:null, resImgSrc:null,
+            fonts:{t1:'Anton',t2:'Anton',t3:'Barlow Condensed',tag:'Barlow Condensed'},
+            resIcon:'flag', news:[] },
+    dynamic:{ results:true, nextGp:true, theme:true, marquee:true }
+  };
+}
+
+// Código de país ("MC") → emoji bandera 🇲🇨
+function _flagEmoji(cc){
+  if(!cc || cc.length!==2) return '';
+  const A=0x1F1E6;
+  return String.fromCodePoint(A+cc.toUpperCase().charCodeAt(0)-65, A+cc.toUpperCase().charCodeAt(1)-65);
+}
+
+function _fmtFechaCorta(iso){ // '2026-06-15' → '15/06/26'
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');
+  return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : '';
+}
+
+// ─── Capa dinámica ──────────────────────────────────────────────────────
+// Devuelve una copia superficial de P con los overrides aplicados.
+// No muta window.PORTADA (el editor debe seguir viendo los valores manuales).
+function applyPortadaDynamics(P){
+  const Q = { ...P, inputs:{...(P.inputs||{})}, state:{...(P.state||{})}, dynamic:{...(P.dynamic||{})} };
+  const dyn = { results:true, nextGp:true, theme:true, marquee:true, ...(P.dynamic||{}) };
+  Q._marquee = false;
+
+  // 1) Resultados del último GP disputado
+  if(dyn.results && Array.isArray(S?.races) && S.races.length){
+    const last = S.races[S.races.length-1];
+    if(last && last.results){
+      const order = Object.entries(last.results)
+        .map(([id,pos])=>({id:+id, pos:+pos}))
+        .sort((a,b)=>a.pos-b.pos)
+        .slice(0,6)
+        .map(e=>{ const d=(S.drivers||[]).find(x=>x.id===e.id); return d ? d.name : ('#'+e.id); });
+      if(order.length){
+        Q.inputs['res-title'] = 'GP ' + (last.country || last.name || '').toUpperCase();
+        Q.inputs['res-list']  = order.join('\n');
+        Q._dynFlag = last.flag || last.countryCode || null; // emoji en vez de imagen manual
+      }
+    }
   }
 
+  // 2) Próximo GP según calendario.
+  // Misma lógica que renderCalendario: el próximo GP es el primero del calendario
+  // cuyo `round` NO está aún en S.races (es decir, el primer GP no disputado).
+  // No usa fechas — un GP cuya fecha haya pasado pero que aún no se haya
+  // registrado en S.races sigue siendo el "próximo".
+  if(dyn.nextGp && Array.isArray(S?.calendario) && S.calendario.length){
+    const disputedRounds = new Set((S?.races||[]).map(r=>Number(r.round||0)).filter(Boolean));
+    const next = S.calendario.find(c => c && c.round && !disputedRounds.has(Number(c.round)));
+    if(next){
+      const nombre = (next.name||'').replace(/^GRAN PREMIO DE\s+/i,'').trim() || next.name;
+      Q.inputs['banner-show'] = '1';
+      Q.inputs['banner-txt']  = `PRÓXIMO GP: ${nombre} ${_fmtFechaCorta(next.date)}`;
+      Q._nextRound   = 'R' + (next.round || '');
+      Q._nextFlag    = next.flag || next.countryCode || '';
+      Q._nextName    = next.name || ('GRAN PREMIO DE ' + nombre);
+      Q._nextCircuit = next.country || '';
+      Q._nextDate    = _fmtFechaCorta(next.date);
+    }
+  }
+
+  // 3) Fondo ligado al tema día/noche
+  if(dyn.theme){
+    Q.inputs['page-bg'] = S?.lightMode ? (P.inputs?.['page-bg'] || '#f0ede8') : '#141416';
+  }
+
+  // 4) Marquesina
+  Q._marquee = !!dyn.marquee;
+  return Q;
+}
+
+// ─── Builder puro: P (ya con dinámicos) → {html, pageBg} ────────────────
+function buildPortadaHTML(P){
   const I = P.inputs || {};
   const ST = P.state || {};
   const fonts = ST.fonts || {};
@@ -6843,94 +6040,35 @@ function renderPortadaCover(){
   const fnum = (k,def)=>{ const x=parseFloat(I[k]); return isNaN(x)?def:x; };
   const vstr = (k,def)=>{ const x=I[k]; return (x==null||x==='')?def:String(x); };
 
-  // —— extracción de campos ————————————————————————————————
-  const hdrBg     = vstr('hdr-bg','#FF8000');
-  const hdrOpacity= (fnum('hdr-opacity',100))/100;
-  const hdrH      = fnum('hdr-h',28);
-  const metaColor = vstr('meta-color','#fff');
-  const logoW     = fnum('logo-w',80);
-  const logoTop   = fnum('logo-top',16);
-  const logoColor = vstr('logo-color','#fff');
-  const tagFont   = fonts.tag || 'Barlow Condensed';
-  const tagSz     = fnum('tag-sz',10);
-  const tagColor  = vstr('tag-color','#fff');
-  const tagGap    = fnum('tag-gap',4);
-  const hdrNum    = vstr('hdr-num','');
-  const hdrFecha  = vstr('hdr-fecha','');
-  const hdrPrice  = vstr('hdr-price','');
-  const hdrTag    = vstr('hdr-tag','');
-
-  const bgH       = fnum('bg-h',340);
-  const gradOp    = (fnum('grad-op',72))/100;
-  const gradColor = vstr('grad-color','#000');
-  const gradDir   = vstr('grad-dir','to top');
-
-  const lblShow   = vstr('lbl-show','0')!=='0';
-  const lblPre    = vstr('lbl-pre','');
-  const lblEvt    = vstr('lbl-evt','');
-  const lblPillBg = vstr('lbl-pill-bg','#E10600');
-  const lblPillFg = vstr('lbl-pill-fg','#fff');
-  const lblEvtFg  = vstr('lbl-evt-fg','#111');
-  const lblBg     = vstr('lbl-bg','#FF8000');
-  const lblSz     = fnum('lbl-sz',11);
-  const lblBottom = fnum('lbl-bottom',140);
-
-  const t1=vstr('t1',''),    t1sz=fnum('t1-sz',72), t1c=vstr('t1-color','#fff'), t1f=fonts.t1||'Anton';
-  const t2=vstr('t2',''),    t2sz=fnum('t2-sz',30), t2c=vstr('t2-color','#FF8000'), t2f=fonts.t2||'Anton';
+  const hdrBg=vstr('hdr-bg','#FF8000'), hdrOpacity=fnum('hdr-opacity',100)/100, hdrH=fnum('hdr-h',28);
+  const metaColor=vstr('meta-color','#fff');
+  const logoW=fnum('logo-w',80), logoTop=fnum('logo-top',16), logoColor=vstr('logo-color','#fff');
+  const tagFont=fonts.tag||'Barlow Condensed', tagSz=fnum('tag-sz',10), tagColor=vstr('tag-color','#fff'), tagGap=fnum('tag-gap',4);
+  const hdrNum=vstr('hdr-num',''), hdrFecha=vstr('hdr-fecha',''), hdrPrice=vstr('hdr-price',''), hdrTag=vstr('hdr-tag','');
+  const bgH=fnum('bg-h',340), gradOp=fnum('grad-op',72)/100, gradColor=vstr('grad-color','#000'), gradDir=vstr('grad-dir','to top');
+  const lblShow=vstr('lbl-show','0')!=='0', lblPre=vstr('lbl-pre',''), lblEvt=vstr('lbl-evt','');
+  const lblPillBg=vstr('lbl-pill-bg','#E10600'), lblPillFg=vstr('lbl-pill-fg','#fff'), lblEvtFg=vstr('lbl-evt-fg','#111'), lblBg=vstr('lbl-bg','#FF8000'), lblSz=fnum('lbl-sz',11), lblBottom=fnum('lbl-bottom',140);
+  const t1=vstr('t1',''), t1sz=fnum('t1-sz',72), t1c=vstr('t1-color','#fff'), t1f=fonts.t1||'Anton';
+  const t2=vstr('t2',''), t2sz=fnum('t2-sz',30), t2c=vstr('t2-color','#FF8000'), t2f=fonts.t2||'Anton';
   const tGap=fnum('t-gap',0);
-  const t3=vstr('t3',''),    t3sz=fnum('t3-sz',13), t3c=vstr('t3-color','#fff'), t3f=fonts.t3||'Barlow Condensed';
-  const t3style=vstr('t3-style','italic');
+  const t3=vstr('t3',''), t3sz=fnum('t3-sz',13), t3c=vstr('t3-color','#fff'), t3f=fonts.t3||'Barlow Condensed', t3style=vstr('t3-style','italic');
+  const tickerTxt=vstr('ticker-txt',''), tickerColor=vstr('ticker-color','#999');
+  const badgeShow=vstr('badge-show','0')!=='0', badgeTxt=vstr('badge-txt',''), badgeBg=vstr('badge-bg','#FF8000'), badgeFg=vstr('badge-fg','#fff');
+  const bannerShow=vstr('banner-show','0')==='1', bannerTxt=vstr('banner-txt',''), bannerBg=vstr('banner-bg','#fff'), bannerFg=vstr('banner-fg','#111'), bannerMy=fnum('banner-my',6);
+  const resTitle=vstr('res-title',''), resList=vstr('res-list','').trim().split('\n').filter(l=>l.trim());
+  const resBg=vstr('res-bg','#E10600'), resFg=vstr('res-fg','#fff');
+  let resImgH=fnum('res-img-h',0);
+  const resIconShow=vstr('res-icon-show','0')!=='0', resIconKey=ST.resIcon||'flag';
+  const cardRadius=fnum('card-radius',14), cardGap=fnum('card-gap',6), gridPad=fnum('grid-pad',14), gridMt=fnum('grid-mt',6), gridMb=fnum('grid-mb',14), imgRadius=fnum('img-radius',14), imgMx=fnum('img-mx',14);
+  const pageBg=vstr('page-bg','#f0ede8');
 
-  const tickerTxt  =vstr('ticker-txt','');
-  const tickerColor=vstr('ticker-color','#999');
+  const colorWithOpacity=(hex,op)=> op>=1 ? hex : `rgba(${_pHexRgb(hex)},${op})`;
 
-  const badgeShow=vstr('badge-show','0')!=='0';
-  const badgeTxt =vstr('badge-txt','');
-  const badgeBg  =vstr('badge-bg','#FF8000');
-  const badgeFg  =vstr('badge-fg','#fff');
-
-  const bannerShow=vstr('banner-show','0')==='1';
-  const bannerTxt =vstr('banner-txt','');
-  const bannerBg  =vstr('banner-bg','#fff');
-  const bannerFg  =vstr('banner-fg','#111');
-  const bannerMy  =fnum('banner-my',6);
-
-  const resTitle    =vstr('res-title','');
-  const resList     =vstr('res-list','').trim().split('\n').filter(l=>l.trim());
-  const resBg       =vstr('res-bg','#E10600');
-  const resFg       =vstr('res-fg','#fff');
-  const resImgH     =fnum('res-img-h',0);
-  const resIconShow =vstr('res-icon-show','0')!=='0';
-  const resIconKey  =ST.resIcon||'flag';
-
-  const cardRadius=fnum('card-radius',14);
-  const cardGap   =fnum('card-gap',6);
-  const gridPad   =fnum('grid-pad',14);
-  const gridMt    =fnum('grid-mt',6);
-  const gridMb    =fnum('grid-mb',14);
-  const imgRadius =fnum('img-radius',14);
-  const imgMx     =fnum('img-mx',14);
-
-  const pageBg    =vstr('page-bg','#f0ede8');
-  target.style.background=pageBg;
-  target.style.padding='0';
-
-  // página fondo (para que se vea el color por debajo del 390px en el container)
-  const cover = document.getElementById('portada-cover');
-  if(cover) cover.style.background = '';
-
-  function colorWithOpacity(hex, opacity){
-    if(opacity>=1) return hex;
-    return `rgba(${_pHexRgb(hex)},${opacity})`;
-  }
-
-  // —— logo ——————————————————————————————————————
   const logoFontSize=Math.round(logoW*3.6);
   const logoHTML=ST.logoSrc
     ?`<img class="p-logo-img" src="${ST.logoSrc}" alt="WARCA" style="width:${logoW}%;height:auto">`
     :`<div class="p-logo-fallback" style="font-size:${logoFontSize*logoW/100}px;color:${logoColor};-webkit-text-stroke:2px ${logoColor}">WARCA</div>`;
 
-  // —— etiqueta evento ——————————————————————
   const lblHTML=lblShow?`
     <div style="position:absolute;bottom:${lblBottom}px;left:12px;right:12px;z-index:15">
       <div class="p-evt-lbl" style="background:${lblBg};font-size:${lblSz}px;border-radius:5px">
@@ -6939,7 +6077,6 @@ function renderPortadaCover(){
       </div>
     </div>`:'';
 
-  // —— badge ——————————————————————————————
   const badgeHTML=badgeShow?`
     <div class="p-badge" style="background:${badgeBg};border-radius:0 0 ${imgRadius}px 0">
       ${ST.badgeSrc?`<img src="${ST.badgeSrc}" alt="">`:
@@ -6947,7 +6084,6 @@ function renderPortadaCover(){
       <div class="p-badge-text" style="color:${badgeFg}">${_pEsc(badgeTxt)}</div>
     </div>`:'';
 
-  // —— titular band ——————————————————————
   const titBandHTML=`
     <div class="p-tit-band">
       <div class="p-tit-main">
@@ -6959,7 +6095,6 @@ function renderPortadaCover(){
       </div>
     </div>`;
 
-  // —— bloque imagen ——————————————————————
   const imgBlockHTML=`
     <div style="margin:0 ${imgMx}px 0;position:relative">
       <div class="p-img-inner" style="height:${bgH}px;border-radius:${imgRadius}px">
@@ -6980,25 +6115,67 @@ function renderPortadaCover(){
       </div>
     </div>`;
 
-  // —— banner ——————————————————————————————
-  const bannerHTML=bannerShow?`
-    <div class="p-banner" style="background:${bannerBg};margin:${bannerMy}px ${gridPad}px;padding:9px 14px;border-radius:${cardRadius}px">
-      <svg viewBox="0 0 24 24" fill="${bannerFg}"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
-      <div class="p-banner-text" style="color:${bannerFg}">${_pEsc(bannerTxt)}</div>
-    </div>`:'';
+  // Banner: estática o marquesina (estética: banda completa estilo Calendario)
+  let bannerHTML='';
+  if(bannerShow){
+    const nextRound  = P._nextRound  || '';
+    const nextFlag   = P._nextFlag   || '';
+    const nextName   = P._nextName   || '';
+    const nextCircuit= P._nextCircuit|| '';
+    const nextDate   = P._nextDate   || '';
 
-  // —— ticker ——————————————————————————————
+    if(P._marquee){
+      // Cada "tramo" replica una banda de calendario: round + bandera + 2 líneas + fecha
+      const flagImg = nextFlag
+        ? `<img class="p-cal-flag-img" src="assets/flags/${nextFlag.toLowerCase()}-sq_flag.webp" alt="" onerror="if(this.dataset.fb){this.style.display='none'}else{this.dataset.fb='1';this.src='assets/flags/${nextFlag.toLowerCase()}_flag.webp'}">`
+        : '';
+      const piece = `
+        <span class="p-cal-piece">
+          ${nextRound?`<span class="p-cal-round" style="color:${bannerFg}">${_pEsc(nextRound)}</span>`:''}
+          ${flagImg?`<span class="p-cal-flag">${flagImg}</span>`:''}
+          <span class="p-cal-info">
+            <span class="p-cal-line1" style="color:${bannerFg}">${_pEsc(nextName)}</span>
+            <span class="p-cal-line2" style="color:${bannerFg}">${_pEsc(nextCircuit)}</span>
+          </span>
+          ${nextDate?`<span class="p-cal-date" style="color:${bannerFg}">${_pEsc(nextDate)}</span>`:''}
+        </span>`;
+      // Repetimos 2 veces y duplicamos para loop infinito
+      const seq = piece.repeat(2);
+      bannerHTML=`
+        <div class="p-banner p-banner-marquee p-banner-cal" onclick="showView('bets', document.getElementById('nav-warca-btn'))" style="background:${bannerBg};margin:${bannerMy}px ${gridPad}px;border-radius:${cardRadius}px;cursor:pointer">
+          <div class="p-marquee-clip" style="--p-marquee-bg:${bannerBg};border-radius:${cardRadius}px 0 0 ${cardRadius}px">
+            <div class="p-marquee-track">${seq}${seq}</div>
+          </div>
+          <div class="p-cal-gold-bar" style="border-radius:0 ${cardRadius}px ${cardRadius}px 0">
+            <span>PRÓX. GP</span>
+          </div>
+        </div>`;
+    } else {
+      bannerHTML=`
+        <div class="p-banner" onclick="showView('bets', document.getElementById('nav-warca-btn'))" style="background:${bannerBg};margin:${bannerMy}px ${gridPad}px;padding:9px 14px;border-radius:${cardRadius}px;cursor:pointer">
+          <div class="p-banner-text" style="color:${bannerFg}">${_pEsc(bannerTxt)}</div>
+        </div>`;
+    }
+  }
+
   const tickerHTML=tickerTxt?`<div class="p-ticker" style="color:${tickerColor};margin:5px ${gridPad}px 0">${_pEsc(tickerTxt)}</div>`:'';
 
-  // —— grid noticias ——————————————————————
+  // Imagen del recuadro de resultados: bandera del repo (cuadrada → rectangular → ocultar)
+  if(P._dynFlag && resImgH<=0) resImgH=80;
+  const resImgHTML = resImgH>0
+    ? (P._dynFlag
+        ? `<div class="p-res-flag-wrap" style="height:${resImgH}px"><img class="p-res-flag-img" src="assets/flags/${P._dynFlag.toLowerCase()}-sq_flag.webp" alt="${_pEsc(P._dynFlag)}" onerror="if(this.dataset.fb){this.style.display='none';this.parentNode.classList.add('p-res-flag-empty');}else{this.dataset.fb='1';this.src='assets/flags/${P._dynFlag.toLowerCase()}_flag.webp';}"></div>`
+        : (ST.resImgSrc
+            ? `<img class="p-card-img-top" src="${ST.resImgSrc}" alt="" style="height:${resImgH}px">`
+            : `<div class="p-card-img-ph" style="height:${resImgH}px"></div>`))
+    : '';
+
   const totalCols=1+news.length;
   const colTpl=totalCols===1?'1fr':totalCols===2?'1fr 1fr':totalCols===3?'1fr 1fr 1fr':'repeat(4,1fr)';
 
   const resCard=`
     <div class="p-news-card" style="background:${resBg};border-radius:${cardRadius}px">
-      ${resImgH>0?(ST.resImgSrc
-        ?`<img class="p-card-img-top" src="${ST.resImgSrc}" alt="" style="height:${resImgH}px">`
-        :`<div class="p-card-img-ph" style="height:${resImgH}px"></div>`):''}
+      ${resImgHTML}
       <div class="p-card-body">
         <div class="p-res-label" style="color:${resFg}">
           ${resIconShow&&resIconKey!=='none'?_PORTADA_ICONS[resIconKey](resFg):''}
@@ -7010,8 +6187,8 @@ function renderPortadaCover(){
 
   const newsCards=news.map(n=>{
     const tc=n.titleColor||n.fg, sc=n.subColor||n.fg, bc=n.bodyColor||n.fg;
-    const iconShow = (n.iconShow===true)||(n.iconShow==='True')||(n.iconShow==='true')||(n.iconShow==='1');
-    const titleSz = parseFloat(n.titleSz)||16;
+    const iconShow=(n.iconShow===true)||(n.iconShow==='True')||(n.iconShow==='true')||(n.iconShow==='1');
+    const titleSz=parseFloat(n.titleSz)||16;
     return `
     <div class="p-news-card" style="background:${n.bg};border-radius:${cardRadius}px">
       ${parseFloat(n.imgH)>0?(n.imgSrc
@@ -7033,20 +6210,369 @@ function renderPortadaCover(){
       ${resCard}${newsCards}
     </div>`;
 
-  target.innerHTML = imgBlockHTML + bannerHTML + tickerHTML + newsGridHTML;
+  return { html: imgBlockHTML + bannerHTML + tickerHTML + newsGridHTML, pageBg };
+}
 
-  // Compensar la altura ocupada por el transform:scale del .portada-scaler.
-  // El navegador reserva siempre la altura nativa (390px de ancho); tras un
-  // scale(N) el elemento ocupa visualmente N veces más, así que hay que
-  // empujar al wrapper para que el contenido siguiente no se solape.
+// ─── Render de la vista PORTADA ─────────────────────────────────────────
+function renderPortadaCover(){
+  const portada = document.getElementById('portada-cover');
+  if(!portada) return;
+  portada.innerHTML = '<div class="portada-scaler"><div id="portada"></div></div>';
+  const scaler = portada.querySelector('.portada-scaler');
+  const target = portada.querySelector('#portada');
+
+  if(!window.PORTADA){
+    target.innerHTML = '<div style="padding:60px 20px;text-align:center;color:#888;font-family:\'Barlow Condensed\',sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase;">Portada no cargada<br><span style="font-size:11px;opacity:.6;">Importa una portada desde Configuración (admin)</span></div>';
+    return;
+  }
+  const Q = applyPortadaDynamics(window.PORTADA);
+  const built = buildPortadaHTML(Q);
+  target.style.background = built.pageBg;
+  target.innerHTML = built.html;
+
+  // Compensar la altura ocupada por el transform:scale del wrapper.
   requestAnimationFrame(()=>{
-    const realH = target.getBoundingClientRect().height; // ya tiene en cuenta el scale
-    const nativeH = target.offsetHeight; // altura sin escalar
+    const realH = target.getBoundingClientRect().height;
+    const nativeH = target.offsetHeight;
     if(nativeH > 0){
       const extra = realH - nativeH;
       scaler.style.marginBottom = (extra > 0 ? extra : 0) + 'px';
     }
   });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EDITOR DE PORTADA (vista admin 'portadaeditor')
+// ════════════════════════════════════════════════════════════════════════
+// Controles generados a partir de un esquema; cada cambio escribe en
+// window.PORTADA y refresca la vista previa (con dinámicos aplicados,
+// para que se vea lo que realmente se publicará).
+
+const PE_SCHEMA = [
+  { title:'⚙ Automatismos', open:true, fields:[
+    {k:'dyn:results', label:'Resultados = último GP disputado', type:'check'},
+    {k:'dyn:nextGp',  label:'Banner = próximo GP del calendario', type:'check'},
+    {k:'dyn:theme',   label:'Fondo ligado al modo día/noche', type:'check'},
+    {k:'dyn:marquee', label:'Banner en marquesina (derecha→izquierda)', type:'check'},
+  ], note:'Los campos automatizados se sobreescriben al publicar; sus valores manuales se conservan en el JSON por si desactivas el automatismo.'},
+  { title:'Titulares', open:true, fields:[
+    {k:'t1',label:'Titular principal',type:'text'},{k:'t1-sz',label:'Tamaño',type:'num'},{k:'t1-color',label:'Color',type:'color'},
+    {k:'t2',label:'Titular secundario',type:'text'},{k:'t2-sz',label:'Tamaño',type:'num'},{k:'t2-color',label:'Color',type:'color'},
+    {k:'t-gap',label:'Separación entre titulares',type:'num'},
+    {k:'t3',label:'Texto lateral',type:'textarea'},{k:'t3-sz',label:'Tamaño',type:'num'},{k:'t3-color',label:'Color',type:'color'},
+    {k:'t3-style',label:'Estilo lateral',type:'select',opts:['italic','normal']},
+  ]},
+  { title:'Imagen principal', fields:[
+    {k:'src:bgSrc',label:'Imagen de fondo',type:'img'},
+    {k:'bg-h',label:'Altura (px)',type:'num'},
+    {k:'grad-op',label:'Opacidad degradado (0-100)',type:'num'},
+    {k:'grad-color',label:'Color degradado',type:'color'},
+    {k:'grad-dir',label:'Dirección degradado',type:'select',opts:['to top','to bottom']},
+    {k:'img-radius',label:'Radio esquinas',type:'num'},{k:'img-mx',label:'Margen lateral',type:'num'},
+  ]},
+  { title:'Cabecera y logo', fields:[
+    {k:'hdr-bg',label:'Fondo franja superior',type:'color'},{k:'hdr-opacity',label:'Opacidad franja (0-100)',type:'num'},{k:'hdr-h',label:'Altura franja',type:'num'},
+    {k:'meta-color',label:'Color textos franja',type:'color'},
+    {k:'hdr-num',label:'Número (Nº1)',type:'text'},{k:'hdr-fecha',label:'Fecha',type:'text'},{k:'hdr-price',label:'Texto derecha',type:'text'},
+    {k:'hdr-tag',label:'Tagline bajo el logo',type:'text'},
+    {k:'src:logoSrc',label:'Logo (imagen)',type:'img'},
+    {k:'logo-w',label:'Ancho logo (%)',type:'num'},{k:'logo-top',label:'Posición vertical logo',type:'num'},{k:'logo-color',label:'Color logo fallback',type:'color'},
+    {k:'tag-sz',label:'Tamaño tagline',type:'num'},{k:'tag-color',label:'Color tagline',type:'color'},{k:'tag-gap',label:'Separación tagline',type:'num'},
+  ]},
+  { title:'Etiqueta de evento', fields:[
+    {k:'lbl-show',label:'Mostrar etiqueta',type:'check01'},
+    {k:'lbl-pre',label:'Texto píldora',type:'text'},{k:'lbl-evt',label:'Texto evento',type:'text'},
+    {k:'lbl-pill-bg',label:'Fondo píldora',type:'color'},{k:'lbl-pill-fg',label:'Texto píldora (color)',type:'color'},
+    {k:'lbl-bg',label:'Fondo etiqueta',type:'color'},{k:'lbl-evt-fg',label:'Texto evento (color)',type:'color'},
+    {k:'lbl-sz',label:'Tamaño',type:'num'},{k:'lbl-bottom',label:'Distancia desde abajo',type:'num'},
+  ]},
+  { title:'Badge esquina', fields:[
+    {k:'badge-show',label:'Mostrar badge',type:'check01'},
+    {k:'src:badgeSrc',label:'Imagen badge',type:'img'},
+    {k:'badge-txt',label:'Texto',type:'text'},{k:'badge-bg',label:'Fondo',type:'color'},{k:'badge-fg',label:'Color texto',type:'color'},
+  ]},
+  { title:'Banner', fields:[
+    {k:'banner-show',label:'Mostrar banner',type:'check01'},
+    {k:'banner-txt',label:'Texto (manual)',type:'text'},
+    {k:'banner-bg',label:'Fondo',type:'color'},{k:'banner-fg',label:'Color texto',type:'color'},{k:'banner-my',label:'Margen vertical',type:'num'},
+  ]},
+  { title:'Ticker', fields:[
+    {k:'ticker-txt',label:'Texto',type:'text'},{k:'ticker-color',label:'Color',type:'color'},
+  ]},
+  { title:'Recuadro resultados', fields:[
+    {k:'res-title',label:'Título (manual)',type:'text'},
+    {k:'res-list',label:'Lista (manual, uno por línea)',type:'textarea'},
+    {k:'res-bg',label:'Fondo',type:'color'},{k:'res-fg',label:'Color texto',type:'color'},
+    {k:'src:resImgSrc',label:'Imagen superior (manual)',type:'img'},
+    {k:'res-img-h',label:'Altura imagen (px, 0=sin)',type:'num'},
+    {k:'res-icon-show',label:'Mostrar icono',type:'check01'},
+    {k:'state:resIcon',label:'Icono',type:'iconsel'},
+  ]},
+  { title:'Fuentes', fields:[
+    {k:'font:t1',label:'Titular principal',type:'font'},
+    {k:'font:t2',label:'Titular secundario',type:'font'},
+    {k:'font:t3',label:'Texto lateral',type:'font'},
+    {k:'font:tag',label:'Tagline',type:'font'},
+  ]},
+  { title:'Página y tarjetas', fields:[
+    {k:'page-bg',label:'Fondo página (manual)',type:'color'},
+    {k:'card-radius',label:'Radio tarjetas',type:'num'},{k:'card-gap',label:'Separación tarjetas',type:'num'},
+    {k:'grid-pad',label:'Padding lateral grid',type:'num'},{k:'grid-mt',label:'Margen sup. grid',type:'num'},{k:'grid-mb',label:'Margen inf. grid',type:'num'},
+  ]},
+];
+
+const PE_NEWS_FIELDS = [
+  {k:'title',label:'Título',type:'text'},{k:'titleSz',label:'Tamaño título',type:'num'},{k:'titleColor',label:'Color título',type:'color'},
+  {k:'sub',label:'Subtítulo',type:'text'},{k:'subSz',label:'Tamaño sub',type:'num'},{k:'subColor',label:'Color sub',type:'color'},
+  {k:'body',label:'Cuerpo',type:'textarea'},{k:'bodySz',label:'Tamaño cuerpo',type:'num'},{k:'bodyColor',label:'Color cuerpo',type:'color'},
+  {k:'bg',label:'Fondo tarjeta',type:'color'},
+  {k:'titleFont',label:'Fuente título',type:'font'},{k:'subFont',label:'Fuente sub',type:'font'},{k:'bodyFont',label:'Fuente cuerpo',type:'font'},
+  {k:'imgSrc',label:'Imagen',type:'img'},{k:'imgH',label:'Altura imagen (px, 0=sin)',type:'num'},
+  {k:'icon',label:'Icono',type:'iconsel'},{k:'iconShow',label:'Mostrar icono',type:'checkbool'},
+];
+
+let _peTimer=null;
+function _peSchedule(){ clearTimeout(_peTimer); _peTimer=setTimeout(pePreview, 120); }
+
+function _peGet(k){
+  const P=window.PORTADA;
+  if(k.startsWith('dyn:'))   { const d={results:true,nextGp:true,theme:true,marquee:true,...(P.dynamic||{})}; return d[k.slice(4)]; }
+  if(k.startsWith('src:'))   return P.state[k.slice(4)] || null;
+  if(k.startsWith('font:'))  return (P.state.fonts||{})[k.slice(5)] || 'Anton';
+  if(k.startsWith('state:')) return P.state[k.slice(6)];
+  return P.inputs[k] ?? '';
+}
+function _peSet(k, v){
+  const P=window.PORTADA;
+  if(k.startsWith('dyn:'))        { if(!P.dynamic) P.dynamic={}; P.dynamic[k.slice(4)]=!!v; }
+  else if(k.startsWith('src:'))   { P.state[k.slice(4)]=v; }
+  else if(k.startsWith('font:'))  { if(!P.state.fonts) P.state.fonts={}; P.state.fonts[k.slice(5)]=v; }
+  else if(k.startsWith('state:')) { P.state[k.slice(6)]=v; }
+  else P.inputs[k]=String(v);
+  _peSchedule();
+}
+
+function _peFieldHTML(f, val){
+  const id='pe-f-'+f.k.replace(/[:.]/g,'-');
+  const esc=v=>_pEsc(v==null?'':String(v));
+  switch(f.type){
+    case 'text':     return `<label class="pe-lbl">${f.label}<input type="text" id="${id}" value="${esc(val)}" oninput="_peSet('${f.k}',this.value)"></label>`;
+    case 'textarea': return `<label class="pe-lbl pe-wide">${f.label}<textarea id="${id}" rows="3" oninput="_peSet('${f.k}',this.value)">${esc(val)}</textarea></label>`;
+    case 'num':      return `<label class="pe-lbl">${f.label}<input type="number" id="${id}" value="${esc(val)}" oninput="_peSet('${f.k}',this.value)"></label>`;
+    case 'color':    return `<label class="pe-lbl">${f.label}<span class="pe-colorrow"><input type="color" value="${/^#([0-9a-f]{3}){1,2}$/i.test(val)?val:'#ffffff'}" oninput="document.getElementById('${id}').value=this.value;_peSet('${f.k}',this.value)"><input type="text" id="${id}" value="${esc(val)}" oninput="_peSet('${f.k}',this.value)"></span></label>`;
+    case 'select':   return `<label class="pe-lbl">${f.label}<select id="${id}" onchange="_peSet('${f.k}',this.value)">${f.opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
+    case 'font':     return `<label class="pe-lbl">${f.label}<select id="${id}" onchange="_peSet('${f.k}',this.value)">${PORTADA_FONTS.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
+    case 'iconsel':  return `<label class="pe-lbl">${f.label}<select id="${id}" onchange="_peSet('${f.k}',this.value)">${Object.keys(_PORTADA_ICONS).map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
+    case 'check':    return `<label class="pe-check"><input type="checkbox" ${val?'checked':''} onchange="_peSet('${f.k}',this.checked)"> ${f.label}</label>`;
+    case 'check01':  return `<label class="pe-check"><input type="checkbox" ${String(val)==='1'?'checked':''} onchange="_peSet('${f.k}',this.checked?'1':'0')"> ${f.label}</label>`;
+    case 'img':      return `<div class="pe-lbl pe-wide">${f.label}
+      <div class="pe-imgrow">
+        <button class="btn btn-dark btn-sm" onclick="_peUploadImg('${f.k}')">📁 Subir</button>
+        <button class="btn btn-dark btn-sm" onclick="_peSet('${f.k}',null);renderPortadaEditor()">✕ Quitar</button>
+        <span class="pe-imgstate">${val?'✓ imagen cargada':'— sin imagen'}</span>
+      </div></div>`;
+  }
+  return '';
+}
+
+function _peUploadImg(key, newsIdx){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      if(newsIdx!=null){ window.PORTADA.state.news[newsIdx][key]=ev.target.result; }
+      else _peSet(key, ev.target.result);
+      renderPortadaEditor();
+    };
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+function _peNewsSet(idx, k, v){ window.PORTADA.state.news[idx][k]=v; _peSchedule(); }
+function _peNewsAdd(){
+  if(!window.PORTADA.state.news) window.PORTADA.state.news=[];
+  window.PORTADA.state.news.push({title:'TITULAR',titleSz:'16',titleColor:'#fff',sub:'SUBTÍTULO',subSz:'11',subColor:'#fff',body:'Texto de la noticia.',bodySz:'12',bodyColor:'#fff',bg:'#E10600',titleFont:'Barlow Condensed',subFont:'Barlow Condensed',bodyFont:'Barlow Condensed',imgSrc:null,imgH:'0',icon:'none',iconShow:false});
+  renderPortadaEditor();
+}
+function _peNewsDel(idx){ window.PORTADA.state.news.splice(idx,1); renderPortadaEditor(); }
+function _peNewsMove(idx,dir){
+  const arr=window.PORTADA.state.news, j=idx+dir;
+  if(j<0||j>=arr.length) return;
+  [arr[idx],arr[j]]=[arr[j],arr[idx]];
+  renderPortadaEditor();
+}
+
+function _peNewsCardHTML(n, idx){
+  const fields=PE_NEWS_FIELDS.map(f=>{
+    if(f.type==='img'){
+      return `<div class="pe-lbl pe-wide">${f.label}<div class="pe-imgrow">
+        <button class="btn btn-dark btn-sm" onclick="_peUploadImg('${f.k}',${idx})">📁 Subir</button>
+        <button class="btn btn-dark btn-sm" onclick="_peNewsSet(${idx},'${f.k}',null);renderPortadaEditor()">✕ Quitar</button>
+        <span class="pe-imgstate">${n[f.k]?'✓ imagen cargada':'— sin imagen'}</span></div></div>`;
+    }
+    if(f.type==='checkbool'){
+      const on=(n[f.k]===true)||(n[f.k]==='true')||(n[f.k]==='True')||(n[f.k]==='1');
+      return `<label class="pe-check"><input type="checkbox" ${on?'checked':''} onchange="_peNewsSet(${idx},'${f.k}',this.checked)"> ${f.label}</label>`;
+    }
+    if(f.type==='font'||f.type==='iconsel'){
+      const opts=f.type==='font'?PORTADA_FONTS:Object.keys(_PORTADA_ICONS);
+      return `<label class="pe-lbl">${f.label}<select onchange="_peNewsSet(${idx},'${f.k}',this.value)">${opts.map(o=>`<option ${o===n[f.k]?'selected':''}>${o}</option>`).join('')}</select></label>`;
+    }
+    if(f.type==='textarea') return `<label class="pe-lbl pe-wide">${f.label}<textarea rows="3" oninput="_peNewsSet(${idx},'${f.k}',this.value)">${_pEsc(n[f.k]||'')}</textarea></label>`;
+    if(f.type==='color') return `<label class="pe-lbl">${f.label}<span class="pe-colorrow"><input type="color" value="${/^#([0-9a-f]{3}){1,2}$/i.test(n[f.k])?n[f.k]:'#ffffff'}" oninput="this.nextElementSibling.value=this.value;_peNewsSet(${idx},'${f.k}',this.value)"><input type="text" value="${_pEsc(n[f.k]||'')}" oninput="_peNewsSet(${idx},'${f.k}',this.value)"></span></label>`;
+    const t=f.type==='num'?'number':'text';
+    return `<label class="pe-lbl">${f.label}<input type="${t}" value="${_pEsc(n[f.k]==null?'':n[f.k])}" oninput="_peNewsSet(${idx},'${f.k}',this.value)"></label>`;
+  }).join('');
+  return `<details class="pe-sec pe-news-card"><summary>📰 Noticia ${idx+1}: ${_pEsc((n.title||'').slice(0,28))}
+      <span class="pe-news-actions">
+        <button class="btn btn-dark btn-sm" onclick="event.preventDefault();event.stopPropagation();_peNewsMove(${idx},-1)">↑</button>
+        <button class="btn btn-dark btn-sm" onclick="event.preventDefault();event.stopPropagation();_peNewsMove(${idx},1)">↓</button>
+        <button class="btn btn-dark btn-sm" onclick="event.preventDefault();event.stopPropagation();_peNewsDel(${idx})">🗑</button>
+      </span></summary>
+    <div class="pe-grid">${fields}</div></details>`;
+}
+
+function renderPortadaEditor(){
+  const root=document.getElementById('pe-controls');
+  if(!root) return;
+  if(!window.PORTADA) window.PORTADA=_portadaDefaults();
+  const P=window.PORTADA;
+  if(!P.inputs) P.inputs={};
+  if(!P.state)  P.state={fonts:{},news:[]};
+  if(!P.state.news) P.state.news=[];
+
+  let html='';
+  for(const sec of PE_SCHEMA){
+    html+=`<details class="pe-sec" ${sec.open?'open':''}><summary>${sec.title}</summary><div class="pe-grid">`;
+    html+=sec.fields.map(f=>_peFieldHTML(f,_peGet(f.k))).join('');
+    if(sec.note) html+=`<div class="pe-note pe-wide">${sec.note}</div>`;
+    html+='</div></details>';
+  }
+  html+=`<div class="pe-sec-head">📰 Noticias (${P.state.news.length})
+    <button class="btn btn-red btn-sm" onclick="_peNewsAdd()">+ Añadir</button></div>`;
+  html+=P.state.news.map((n,i)=>_peNewsCardHTML(n,i)).join('');
+  root.innerHTML=html;
+  pePreview();
+}
+
+function pePreview(){
+  const pv=document.getElementById('pe-preview');
+  if(!pv || !window.PORTADA) return;
+  const Q=applyPortadaDynamics(window.PORTADA);
+  const built=buildPortadaHTML(Q);
+  pv.style.background=built.pageBg;
+  pv.innerHTML=built.html;
+}
+
+function peSaveLocal(){
+  try{
+    localStorage.setItem('leala_portada_v1', JSON.stringify(window.PORTADA));
+    showNotif('✅ Portada guardada (local)');
+  }catch(e){ showNotif('⚠ localStorage lleno: no persiste tras refresco'); }
+  renderPortadaCover();
+}
+
+function peExportJSON(){
+  const blob=new Blob([JSON.stringify(window.PORTADA)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='portada.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  showNotif('⬇ portada.json exportado — súbelo a data/ en tu repo');
+}
+
+// Captura la portada actual (window.PORTADA + dinámicos) → JPG comprimido → S.hemeroteca.
+// Para evitar deformaciones por el ancho real del preview en pantalla,
+// clonamos el HTML en un contenedor invisible a 390px nativos (medidas del generador).
+function peSaveToHemeroteca(){
+  if(!window.PORTADA){ showNotif('⚠ No hay portada cargada'); return; }
+  if(typeof html2canvas !== 'function'){ showNotif('⚠ html2canvas no disponible'); return; }
+  showNotif('📸 Generando snapshot…');
+
+  const Q = applyPortadaDynamics(window.PORTADA);
+  const built = buildPortadaHTML(Q);
+
+  // Sandbox de captura: 390px de ancho, fuera de viewport, mismo background que la portada
+  const sandbox = document.createElement('div');
+  sandbox.style.cssText = `position:fixed;left:-10000px;top:0;width:390px;background:${built.pageBg};box-sizing:content-box;`;
+  sandbox.id = 'pe-capture-sandbox';
+  sandbox.innerHTML = built.html;
+  document.body.appendChild(sandbox);
+
+  // Pequeño respiro para que se asienten layouts e imágenes
+  setTimeout(()=>{
+    html2canvas(sandbox, {
+      backgroundColor: built.pageBg,
+      width: 390,
+      windowWidth: 390,
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      imageTimeout: 8000
+    }).then(canvas=>{
+      const img = canvas.toDataURL('image/jpeg', 0.82);
+      const last = (S.races && S.races.length) ? S.races[S.races.length-1] : null;
+      const gpName = last ? (last.name || last.country || '—') : (window.PORTADA.inputs?.t1 || 'PORTADA');
+      const fecha = new Date().toLocaleDateString('es-ES');
+      const titulo = (window.PORTADA.inputs?.t1 || '').trim() || 'Portada';
+      if(!S.hemeroteca) S.hemeroteca = [];
+      S.hemeroteca.unshift({
+        id: 'hem_' + Date.now(),
+        title: titulo,
+        gp: gpName,
+        date: fecha,
+        img
+      });
+      saveState();
+      showNotif('✅ Portada añadida a la Hemeroteca');
+    }).catch(err=>{
+      console.warn('html2canvas error', err);
+      showNotif('⚠ Error capturando la portada');
+    }).finally(()=>{
+      sandbox.remove();
+    });
+  }, 200);
+}
+
+// Exporta la hemeroteca completa para subir a data/hemeroteca.json.
+// Formato: { _version:'v1', entries:[{id,title,gp,date,img}, ...] }
+function exportHemerotecaJSON(){
+  const entries = S.hemeroteca || [];
+  if(!entries.length){ showNotif('⚠ La hemeroteca está vacía'); return; }
+  const payload = { _version:'v1', exported: new Date().toISOString(), entries };
+  const json = JSON.stringify(payload);
+  const sizeMB = (json.length / (1024*1024)).toFixed(2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hemeroteca.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  showNotif(`⬇ hemeroteca.json exportado (${sizeMB} MB · ${entries.length} portadas) — súbelo a data/`);
+}
+
+// Carga remota de data/hemeroteca.json al arrancar.
+// Estrategia de merge: las entradas remotas (servidor) son la fuente canónica
+// para portadas publicadas; las locales que NO estén en remoto se conservan
+// (son trabajo en curso del usuario que aún no ha exportado/publicado).
+async function autoLoadHemeroteca(){
+  try{
+    const r = await fetch('data/hemeroteca.json?t=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) return;
+    const payload = await r.json();
+    const remote = Array.isArray(payload) ? payload : (payload.entries || []);
+    if(!remote.length) return;
+    const local = Array.isArray(S.hemeroteca) ? S.hemeroteca : [];
+    const remoteIds = new Set(remote.map(e=>String(e.id)));
+    // Locales no presentes en remoto → trabajo no publicado, se mantiene al final
+    const onlyLocal = local.filter(e => !remoteIds.has(String(e.id)));
+    S.hemeroteca = [...remote, ...onlyLocal];
+  }catch(e){ /* silencioso: si no existe el archivo, seguimos con la local */ }
 }
 
 // ─── Carga automática desde data/portada.json + override de localStorage ───
@@ -7104,6 +6630,7 @@ function importPortadaJSON(input){
       const st = document.getElementById('portada-import-status');
       if(st && !st.textContent) st.textContent = '✓ Portada importada y guardada localmente';
       renderPortadaCover();
+      if(document.getElementById('view-portadaeditor')?.classList.contains('active')) renderPortadaEditor();
       if(typeof showNotif==='function') showNotif('Portada importada');
     }catch(err){
       const st = document.getElementById('portada-import-status');
@@ -7120,6 +6647,7 @@ async function resetPortadaToRemote(){
   if(remote){
     window.PORTADA = _sanitizePortada(remote);
     renderPortadaCover();
+    if(document.getElementById('view-portadaeditor')?.classList.contains('active')) renderPortadaEditor();
     const st = document.getElementById('portada-import-status');
     if(st) st.textContent = '✓ Restaurada desde data/portada.json';
     if(typeof showNotif==='function') showNotif('Portada restaurada');
@@ -7129,16 +6657,21 @@ async function resetPortadaToRemote(){
   }
 }
 
-
-
 async function bootApp(){
   // Cargamos en paralelo el data.json y el portada.json antes de init,
   // así init() puede pintar la portada con datos ya disponibles.
   await Promise.all([ autoLoadInitialData(), autoLoadPortada() ]);
+  // La hemeroteca debe cargarse tras autoLoadInitialData (que puede haber
+  // rellenado S.hemeroteca desde data.json); el merge respeta lo local no publicado.
+  await autoLoadHemeroteca();
   init();
-  // Reajustar la portada si cambia el tamaño de la ventana (cambia el scale).
-  let _portadaResizeT;
+  // Reajustar la portada si cambia el ANCHO de la ventana (cambia el scale).
+  // Ignoramos cambios solo de altura: en móvil la barra de URL aparece/desaparece
+  // con el scroll y eso dispararía un resize que reiniciaría la marquesina.
+  let _portadaResizeT, _lastPortadaW = window.innerWidth;
   window.addEventListener('resize', ()=>{
+    if(window.innerWidth === _lastPortadaW) return;
+    _lastPortadaW = window.innerWidth;
     clearTimeout(_portadaResizeT);
     _portadaResizeT = setTimeout(()=>{
       if(document.getElementById('view-cover')?.classList.contains('active')){
